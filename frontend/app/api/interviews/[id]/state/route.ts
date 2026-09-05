@@ -72,13 +72,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       interview.interviewState = setAuthoritativeFloorState(interview.interviewState, floorState);
       result = { interviewState: interview.interviewState, floorState: interview.interviewState.floorState };
     } else if (action === 'CANDIDATE_UTTERANCE') {
-      const { updatedState, qualityReport, floorRequestResult } = recordCandidateUtterance(interview.interviewState, utterance || '');
+      const { updatedState, qualityReport, floorRequestResult, challengerObservation, roundCompletion } = recordCandidateUtterance(interview.interviewState, utterance || '');
       interview.interviewState = updatedState;
       result = { 
         interviewState: updatedState, 
         floorState: updatedState.floorState,
         qualityReport, 
-        floorRequestResult 
+        floorRequestResult,
+        challengerObservation,
+        roundCompletion
       };
     } else if (action === 'CHALLENGER_REQUEST') {
       const challengerRes = evaluateChallengerFloorRequest(interview.interviewState, {

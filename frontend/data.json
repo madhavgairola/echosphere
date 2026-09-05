@@ -4476,7 +4476,7 @@
       "jobId": "j1",
       "candidateId": "demo-cand-test",
       "resumeText": "Alex Rivera\nSenior Backend & Infrastructure Engineer\nEmail: alex.rivera@example.com | Phone: +1-555-0192\n\nPROFESSIONAL SUMMARY:\nSeasoned Distributed Systems Engineer with 5+ years building sub-50ms real-time event streaming engines, lock-free concurrency in Go, and multi-region data platforms.\n\nCORE SKILLS:\n• Distributed Systems Architecture, Raft Consensus, Event-Driven Topologies\n• Go (Golang), TypeScript/Node.js, C++\n• Apache Kafka, Redis Clusters, PostgreSQL Optimization\n• WebRTC, WebSockets, Low-Latency Real-Time Audio\n\nEXPERIENCE:\n• Vortex Cloud Inc. (2021 - Present): Senior Systems Engineer\n  - Built event pipeline processing 1.8M events/sec.\n  - Reduced p99 latency from 45ms to 11ms.\n• Nexus Scale Labs (2019 - 2021): Backend Engineer\n  - Scaled WebSocket connection pooling to 250,000 active nodes.",
-      "status": "SELECTED",
+      "status": "REJECTED",
       "decisionStage": "FINAL_DECISION",
       "candidateContext": {
         "headline": "Staff Infrastructure Engineer — Distributed Systems & Event Streaming",
@@ -4518,9 +4518,9 @@
           }
         ]
       },
-      "evaluationScore": 92,
-      "evaluationSummary": "Alex Rivera demonstrated exceptional domain expertise in high-concurrency event pipelines, Go performance tuning, and ultra-low-latency real-time backend architecture. Their proven background in scaling event processing to 1.8M events/sec and optimizing p99 latency down to 11ms aligns perfectly with Nexora Labs' core platform requirements.",
-      "decisionReason": "Alex Rivera demonstrated exceptional domain expertise in high-concurrency event pipelines, Go performance tuning, and ultra-low-latency real-time backend architecture. Their proven background in scaling event processing to 1.8M events/sec and optimizing p99 latency down to 11ms aligns perfectly with Nexora Labs' core platform requirements."
+      "evaluationScore": 15,
+      "evaluationSummary": "Candidate provided insufficient demonstrable technical evidence during the interview panel for Senior Backend Engineer — Distributed Systems & Real-Time APIs. Responses lacked concrete architectural depth, implementation mechanics, and clear technical reasoning.",
+      "decisionReason": "Candidate provided insufficient demonstrable technical evidence during the interview panel for Senior Backend Engineer — Distributed Systems & Real-Time APIs. Responses lacked concrete architectural depth, implementation mechanics, and clear technical reasoning."
     },
     {
       "id": "matrix_app_test_01",
@@ -4744,6 +4744,12 @@
           "decision": "FAIL",
           "score": 0,
           "reason": "The transcript is empty, indicating the candidate did not answer any questions or participate in the interview. As a result, they fail to demonstrate any of the required competencies outlined in the rubric."
+        },
+        {
+          "round": "Round 1: Technical Panel (Systems & Concurrency)",
+          "decision": "FAIL",
+          "score": 10,
+          "reason": "Candidate provided zero demonstrable technical evidence or unintelligible non-answers during the round."
         }
       ],
       "suspiciousEvents": [
@@ -4767,6 +4773,27 @@
           "details": "Candidate returned to interview tab after 1.3s",
           "severity": "INFO",
           "score_impact": 0
+        },
+        {
+          "timestamp": "2026-09-05T19:18:06.779Z",
+          "type": "TAB_SWITCH",
+          "details": "Candidate switched tabs or minimized interview window",
+          "severity": "HIGH",
+          "score_impact": -15
+        },
+        {
+          "timestamp": "2026-09-05T19:18:10.316Z",
+          "type": "TAB_SWITCH",
+          "details": "Candidate switched tabs or minimized interview window",
+          "severity": "HIGH",
+          "score_impact": -15
+        },
+        {
+          "timestamp": "2026-09-05T19:18:21.917Z",
+          "type": "TAB_SWITCH",
+          "details": "Candidate switched tabs or minimized interview window",
+          "severity": "HIGH",
+          "score_impact": -15
         }
       ],
       "interviewState": {
@@ -4795,7 +4822,7 @@
         "updatedAt": "2026-09-05T18:31:39.807Z"
       },
       "proctoringReport": {
-        "integrity_score": 96,
+        "integrity_score": 81,
         "confidence_score": 93,
         "screen_attention_score": 96,
         "gaze_stability_score": 95,
@@ -4805,7 +4832,7 @@
         "face_presence_score": 99,
         "behavioral_calmness_score": 94,
         "behavioral_consistency_score": 94,
-        "compound_penalty": 0,
+        "compound_penalty": 15,
         "assessment": "LOW SUSPICION",
         "assessment_desc": "Low behavioral anomaly level. Candidate demonstrated consistent screen attention and organic responses.",
         "badge_color": "green",
@@ -4827,7 +4854,9 @@
             "Head orientation remained consistently centered toward screen.",
             "Hand activity was normal with natural conversational gestures."
           ],
-          "cautions": []
+          "cautions": [
+            "Multi-modal compound alignment observed (correlated gaze/head/speech/context deviations)."
+          ]
         },
         "components": {
           "eye_gaze_contrib": 28.7,
@@ -4838,60 +4867,35 @@
           "speech_contrib": 9,
           "consistency_contrib": 4.7
         },
-        "lastUpdated": "2026-09-05T18:32:12.208Z",
-        "totalEventsRecorded": 3
+        "lastUpdated": "2026-09-05T19:18:21.917Z",
+        "totalEventsRecorded": 6
       },
       "scorecard": {
-        "overall_recommendation": "Strong Hire",
-        "overallScore": 92,
-        "overall_summary": "Alex Rivera demonstrated exceptional domain expertise in high-concurrency event pipelines, Go performance tuning, and ultra-low-latency real-time backend architecture. Their proven background in scaling event processing to 1.8M events/sec and optimizing p99 latency down to 11ms aligns perfectly with Nexora Labs' core platform requirements.",
-        "strengths": [
-          "Proven track record building ultra-low-latency distributed event streaming engines (1.8M events/sec, 11ms p99 latency).",
-          "Deep mastery of Go concurrency models, lock-free channels, and WebSocket socket pooling.",
-          "Strong technical alignment with Nexora's stack including Kafka, Redis, PostgreSQL, Go, and TypeScript."
-        ],
+        "overall_recommendation": "No Hire",
+        "overallScore": 15,
+        "overall_summary": "Candidate provided insufficient demonstrable technical evidence during the interview panel for Senior Backend Engineer — Distributed Systems & Real-Time APIs. Responses lacked concrete architectural depth, implementation mechanics, and clear technical reasoning.",
+        "strengths": [],
         "weaknesses": [
-          "Could provide more explicit details regarding Kubernetes operator deployment models and GitOps workflows.",
-          "Limited detail on direct cross-functional alignment with ML/AI research teams for streaming payload contracts."
+          "Lacked demonstrable technical depth in core systems and concurrency requirements",
+          "Provided vague, unintelligible, or non-substantive answers when challenged on architectural trade-offs",
+          "Did not substantiate resume claims with concrete implementation details"
         ],
         "rubric_evaluations": [
           {
-            "pillar": "Technical Depth & Concurrency",
-            "score": 5,
-            "feedback": "Exhibits exceptional mastery over Go concurrency patterns, memory barrier synchronization, and low-latency runtime optimization.",
-            "evidence": [
-              "Demonstrated hands-on experience with lock-free concurrency in Go.",
-              "Scaled active WebSocket connection pooling to 250,000 concurrent nodes at Nexus Scale Labs."
-            ]
+            "pillar": "Technical Depth & Codecraft",
+            "score": 1,
+            "feedback": "Insufficient evidence of technical competence or architectural reasoning.",
+            "evidence": []
           },
           {
-            "pillar": "Distributed Systems Architecture",
-            "score": 5,
-            "feedback": "Deep knowledge of consensus algorithms, event-driven topologies, fault tolerance, and multi-region platform design.",
-            "evidence": [
-              "Architected event processing pipelines scaling up to 1.8M events/sec at Vortex Cloud Inc.",
-              "Solid expertise in Kafka, Redis Clusters, and Raft consensus implementations."
-            ]
-          },
-          {
-            "pillar": "Problem Decomposition & Rigor",
-            "score": 4,
-            "feedback": "Highly quantitative approach to system bottlenecks, latency profiling, and edge-case failure mode resolution.",
-            "evidence": [
-              "Successfully reduced overall system p99 latency from 45ms to 11ms through systematic bottlenecks identification."
-            ]
-          },
-          {
-            "pillar": "Communication & Ownership Mindset",
-            "score": 4,
-            "feedback": "Articulate and structured communicator with clear ownership of mission-critical systems and production stability.",
-            "evidence": [
-              "Clearly articulated performance engineering trade-offs and backend architectural choices."
-            ]
+            "pillar": "Behavioral & Communication",
+            "score": 2,
+            "feedback": "Responses were non-substantive or evasive.",
+            "evidence": []
           }
         ]
       },
-      "completedAt": "2026-09-05T18:32:51.425Z"
+      "completedAt": "2026-09-05T19:19:23.357Z"
     },
     {
       "id": "matrix_eval_test_01",

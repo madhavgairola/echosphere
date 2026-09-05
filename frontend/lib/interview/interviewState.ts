@@ -84,7 +84,7 @@ export function classifyCandidateAnswer(utterance: string, previousAttemptsOnQue
   }
 
   // Common evasion / silence / refusal phrases
-  if (/^(i don't know|no idea|can we skip|pass|not sure|i am not sure|next question|let's move on)\b/i.test(clean)) {
+  if (/^(i\s*don'?t\s*know|no\s*idea|can\s*we\s*skip|pass|not\s*sure|i\s*am\s*not\s*sure|next\s*question|let'?s\s*move\s*on)\b/i.test(clean)) {
     return { classification: 'NO_ANSWER', qualityScore: 10, isGibberish: false };
   }
 
@@ -291,15 +291,159 @@ export function evaluateChallengerFloorRequest(
 }
 
 /**
+ * Checks whether the current round has met natural completion criteria.
+ * The timer is a MAXIMUM ceiling; natural completion wraps up the round immediately.
+ */
+export function checkRoundCompletionCriteria(state: InterviewState): {
+  isComplete: boolean;
+  completionReason: 'ALL_COMPETENCIES_ASSESSED' | 'MAX_QUESTIONS_REACHED' | 'CONSECUTIVE_FAILURES' | 'NONE';
+  summary: string;
+} {
+  if (state.interviewStatus === 'COMPLETED' || state.floorState === 'TECHNICAL_CLOSING' || state.floorState === 'HR_CLOSING') {
+    return { isComplete: true, completionReason: 'ALL_COMPETENCIES_ASSESSED', summary: 'Round already in closing state.' };
+  }
+
+  const trackers = state.competencyTrackers || [];
+  const totalEvidenceCount = trackers.reduce((acc, t) => acc + (t.evidence?.length || 0), 0);
+  const sufficientCompetencies = trackers.filter(t => t.sufficientEvidence || (t.evidence && t.evidence.length >= 2)).length;
+  const questionsCount = state.questionsAsked?.length || 0;
+
+  // Check for consecutive non-answers / failures (last 3 candidate utterances)
+  const recentEvidence = state.structuredEvidence?.slice(-3) || [];
+  if (recentEvidence.length >= 3 && recentEvidence.every(e => e.classification !== 'VALID_STRONG' && e.classification !== 'VALID_PARTIAL')) {
+    return {
+      isComplete: true,
+      completionReason: 'CONSECUTIVE_FAILURES',
+      summary: 'Candidate demonstrated repeated non-answers/unintelligible responses across consecutive questions. Concluding round for evaluation.'
+    };
+  }
+
+  // Technical Round Natural Completion
+  if (state.currentRound === 'technical') {
+    // Condition A: Evidence collected across key competencies
+    if ((sufficientCompetencies >= 2 || totalEvidenceCount >= 3) && questionsCount >= 3) {
+      return {
+        isComplete: true,
+        completionReason: 'ALL_COMPETENCIES_ASSESSED',
+        summary: `Assessed core technical domains with ${totalEvidenceCount} verbatim evidence items across ${questionsCount} questions. Technical criteria satisfied.`
+      };
+    }
+
+    // Condition B: Target question quota reached
+    if (questionsCount >= 4 && totalEvidenceCount >= 2) {
+      return {
+        isComplete: true,
+        completionReason: 'MAX_QUESTIONS_REACHED',
+        summary: `Completed ${questionsCount} technical questions with sufficient evidence collection.`
+      };
+    }
+  }
+
+  // HR Round Natural Completion
+  if (state.currentRound === 'hr') {
+    if (questionsCount >= 3 || (sufficientCompetencies >= 1 && questionsCount >= 2)) {
+      return {
+        isComplete: true,
+        completionReason: 'ALL_COMPETENCIES_ASSESSED',
+        summary: `HR & Culture discussion completed with ${questionsCount} questions covered.`
+      };
+    }
+  }
+
+  return { isComplete: false, completionReason: 'NONE', summary: 'Round in progress.' };
+}
+
+/**
+ * Challenger Active Observation Engine.
+ * Observes the shared candidate context and determines whether an intervention adds meaningful value.
+ */
+export function evaluateChallengerObservation(
+  state: InterviewState,
+  candidateUtterance: string
+): {
+  action: 'NO_INTERVENTION' | 'STRUCTURED_FLOOR_REQUEST';
+  reason: string;
+  request?: {
+    agentId: string;
+    agentName: string;
+    reason: string;
+    targetCompetency: string;
+    priority: 'low' | 'medium' | 'high';
+    proposedProbe: string;
+  };
+} {
+  const clean = candidateUtterance.trim();
+  const challenger = state.activeAgents.find(a => !a.isPrimary && a.isActive);
+
+  if (!challenger || state.currentRound !== 'technical') {
+    return { action: 'NO_INTERVENTION', reason: 'No active Challenger in current round.' };
+  }
+
+  // Check if candidate response was trivial / non-substantive
+  if (clean.length < 25) {
+    return { action: 'NO_INTERVENTION', reason: 'Candidate response lacks substantive technical claims to challenge.' };
+  }
+
+  // Contextually evaluate architectural triggers against the candidate's claims
+  for (const trigger of ARCHITECTURAL_TRIGGERS) {
+    const match = clean.match(trigger.pattern);
+    if (match) {
+      // Formulate a sharp, role-specific technical probe based on the claim
+      let naturalProbe = '';
+      if (trigger.reason === 'candidate_claimed_distributed_consensus') {
+        naturalProbe = `You mentioned distributed consensus with ${match[0]}. How does your architecture handle split-brain partitions and verify quorum during sudden node isolation?`;
+      } else if (trigger.reason === 'candidate_claimed_concurrency_model') {
+        naturalProbe = `You brought up ${match[0]}. How do you mitigate race conditions and thread starvation under sudden lock contention?`;
+      } else if (trigger.reason === 'candidate_claimed_event_streaming') {
+        naturalProbe = `Regarding your ${match[0]} setup, how do you handle consumer group rebalance storms when partitions scale under backpressure?`;
+      } else if (trigger.reason === 'candidate_claimed_high_scale') {
+        naturalProbe = `You cited handling ${match[0]}. What specific backpressure or shedding mechanism prevents cascading failure during downstream service degradation?`;
+      } else if (trigger.reason === 'candidate_claimed_caching_layer') {
+        naturalProbe = `With your ${match[0]} architecture, how do you prevent cache stampedes and stale reads when invalidating hot distributed keys?`;
+      } else {
+        naturalProbe = `Regarding your ${match[0]} claim, what are the primary failure modes you observed and how did you verify recovery?`;
+      }
+
+      return {
+        action: 'STRUCTURED_FLOOR_REQUEST',
+        reason: trigger.reason,
+        request: {
+          agentId: challenger.agentId,
+          agentName: challenger.name,
+          reason: trigger.reason,
+          targetCompetency: trigger.competency,
+          priority: 'medium',
+          proposedProbe: naturalProbe
+        }
+      };
+    }
+  }
+
+  return { action: 'NO_INTERVENTION', reason: 'Candidate answer addressed current question adequately without unaddressed architectural risks.' };
+}
+
+/**
  * Records a candidate utterance into the shared state.
  * Transitions floorState to CANDIDATE_SPEAKING and records structured evidence.
  */
 export function recordCandidateUtterance(
   state: InterviewState,
   utterance: string
-): { updatedState: InterviewState; qualityReport: any; floorRequestResult?: any } {
+): { 
+  updatedState: InterviewState; 
+  qualityReport: any; 
+  floorRequestResult?: any;
+  challengerObservation?: any;
+  roundCompletion?: any;
+} {
   const clean = utterance.trim();
-  if (!clean) return { updatedState: state, qualityReport: { classification: 'NO_ANSWER', qualityScore: 0 } };
+  if (!clean) {
+    return { 
+      updatedState: state, 
+      qualityReport: { classification: 'NO_ANSWER', qualityScore: 0 },
+      roundCompletion: checkRoundCompletionCriteria(state)
+    };
+  }
 
   let updated = setAuthoritativeFloorState(state, 'CANDIDATE_SPEAKING');
   updated.candidateAnswer = clean;
@@ -353,32 +497,32 @@ export function recordCandidateUtterance(
     updated.evidenceCollected = [...updated.evidenceCollected, quality.verbatimQuote];
   }
 
-  // During technical round, evaluate if the Challenger should request the floor
+  // Challenger Active Observation
+  const observation = evaluateChallengerObservation(updated, clean);
   let floorRequestResult: any = null;
-  if (updated.currentRound === 'technical') {
-    const challenger = updated.activeAgents.find(a => !a.isPrimary && a.isActive);
 
-    if (challenger) {
-      for (const trigger of ARCHITECTURAL_TRIGGERS) {
-        const match = clean.match(trigger.pattern);
-        if (match) {
-          const arbiterRes = evaluateChallengerFloorRequest(updated, {
-            agentId: challenger.agentId,
-            agentName: challenger.name,
-            reason: trigger.reason,
-            targetCompetency: trigger.competency,
-            priority: 'medium',
-            proposedProbe: `Candidate claimed "${match[0]}". Probe ${trigger.probeType.replace(/_/g, ' ')}.`
-          }, true);
-          updated = arbiterRes.updatedState;
-          floorRequestResult = arbiterRes;
-          break;
-        }
-      }
-    }
+  if (observation.action === 'STRUCTURED_FLOOR_REQUEST' && observation.request) {
+    const arbiterRes = evaluateChallengerFloorRequest(updated, observation.request, true);
+    updated = arbiterRes.updatedState;
+    floorRequestResult = {
+      granted: arbiterRes.granted,
+      decisionReason: arbiterRes.decisionReason,
+      proposedProbe: observation.request.proposedProbe,
+      targetCompetency: observation.request.targetCompetency,
+      priority: observation.request.priority
+    };
   }
 
-  return { updatedState: updated, qualityReport: quality, floorRequestResult };
+  // Check for natural round completion
+  const roundCompletion = checkRoundCompletionCriteria(updated);
+
+  return { 
+    updatedState: updated, 
+    qualityReport: quality, 
+    floorRequestResult,
+    challengerObservation: observation,
+    roundCompletion 
+  };
 }
 
 /**

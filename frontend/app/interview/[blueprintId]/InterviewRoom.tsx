@@ -90,8 +90,8 @@ export default function InterviewRoom({
           // Auto-trigger round wrap-up when criteria/time mark is reached
           if (next >= ROUND_TARGET_SECONDS && !autoFinishTriggeredRef.current) {
             autoFinishTriggeredRef.current = true;
-            addLog('Orchestrator', `Target round duration reached (${Math.floor(ROUND_TARGET_SECONDS / 60)}m). Concluding round smoothly...`);
-            finishRound();
+            addLog('Orchestrator', `Maximum target round duration reached (${Math.floor(ROUND_TARGET_SECONDS / 60)}m). Concluding round smoothly...`);
+            finishRound('TIME_LIMIT_REACHED');
           }
           return next;
         });
@@ -227,6 +227,7 @@ export default function InterviewRoom({
   const handleCandidateUtterance = async (utterance: string) => {
     if (!utterance || utterance.length < 8) return;
     try {
+      const round = blueprint.interview_rounds[currentRound] || blueprint.interview_rounds[0];
       const res = await fetch(`/api/interviews/${interviewId}/state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -238,8 +239,19 @@ export default function InterviewRoom({
         addLog('Answer Classifier', `Response: ${stateData.qualityReport.classification} (Score: ${stateData.qualityReport.qualityScore})`);
       }
 
+      // Check Challenger Active Observation
+      if (stateData.challengerObservation?.action === 'STRUCTURED_FLOOR_REQUEST') {
+        addLog('Challenger Observer', `Active observation formulated probe on ${stateData.challengerObservation.request?.targetCompetency}`);
+      } else if (stateData.challengerObservation?.action === 'NO_INTERVENTION') {
+        addLog('Challenger Observer', `No intervention needed: ${stateData.challengerObservation.reason}`);
+      }
+
+      // Handle Floor Grant to Challenger
       if (stateData.floorRequestResult?.granted) {
-        addLog('Turn Arbiter', `Floor granted to Specialist: ${stateData.floorRequestResult.decisionReason}`);
+        const probeText = stateData.floorRequestResult.proposedProbe || stateData.challengerObservation?.request?.proposedProbe || 'Could you elaborate on the failure modes in your architecture?';
+        const challengerName = challengerAgent?.name || 'Arjun Malhotra';
+        
+        addLog('Turn Arbiter', `Floor granted to Challenger (${challengerName}): ${stateData.floorRequestResult.decisionReason}`);
         setFloorOwner('CHALLENGER_AI');
         currentFloorRef.current = 'CHALLENGER_AI';
         remoteAudioTracksRef.current.get(9991)?.setVolume(0);
@@ -250,10 +262,34 @@ export default function InterviewRoom({
           intervening: true
         })));
 
-        // Return floor naturally to Primary Lead after probe turn completes (20s)
+        // Append Challenger's probe to live transcript
+        setTranscript(prev => [...prev, {
+          round: round.round_name,
+          speaker: challengerName,
+          text: probeText
+        }]);
+
+        // Vocalize probe cleanly in room via Web Speech API
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+            const speechUtterance = new SpeechSynthesisUtterance(probeText);
+            speechUtterance.rate = 1.0;
+            speechUtterance.pitch = 0.95;
+            speechUtterance.onend = () => {
+              addLog('Turn Arbiter', `${challengerName} completed asking probe. Floor yielded for candidate response.`);
+              setFloorOwner('NONE');
+            };
+            window.speechSynthesis.speak(speechUtterance);
+          } catch (e) {
+            console.warn('Speech synthesis error:', e);
+          }
+        }
+
+        // Return floor to Lead Interviewer after probe interaction window (18s)
         setTimeout(() => {
           if (currentFloorRef.current === 'CHALLENGER_AI') {
-            addLog('Turn Arbiter', `Specialist probe complete. Floor returned to Lead Interviewer.`);
+            addLog('Turn Arbiter', `Specialist probe turn complete. Returning floor to Lead Interviewer.`);
             setFloorOwner('PRIMARY_AI');
             currentFloorRef.current = 'PRIMARY_AI';
             remoteAudioTracksRef.current.get(9992)?.setVolume(0);
@@ -264,8 +300,28 @@ export default function InterviewRoom({
               intervening: false
             })));
           }
-        }, 20000);
+        }, 18000);
+      } else if (currentFloorRef.current === 'CHALLENGER_AI') {
+        // If candidate just answered a Challenger probe, return floor to Primary Lead
+        addLog('Turn Arbiter', `Candidate addressed Specialist probe. Returning floor to Lead Interviewer.`);
+        setFloorOwner('PRIMARY_AI');
+        currentFloorRef.current = 'PRIMARY_AI';
+        remoteAudioTracksRef.current.get(9992)?.setVolume(0);
+        remoteAudioTracksRef.current.get(9991)?.setVolume(100);
+        setActivePanelAgents(prev => prev.map(a => ({
+          ...a,
+          hasFloor: a.isPrimary,
+          intervening: false
+        })));
       }
+
+      // Check Natural Round Completion Criteria
+      if (stateData.roundCompletion?.isComplete && !autoFinishTriggeredRef.current) {
+        autoFinishTriggeredRef.current = true;
+        addLog('Orchestrator', `✨ Natural round completion satisfied (${stateData.roundCompletion.completionReason}): ${stateData.roundCompletion.summary}. Concluding round immediately...`);
+        finishRound();
+      }
+
     } catch (err) {
       console.error('Turn arbitration sync error:', err);
     }
@@ -678,10 +734,12 @@ CORE RULES & SILENT STANDBY:
     }
   };
 
-  const finishRound = async () => {
+  const finishRound = async (triggerReason: string = 'NATURAL_COMPLETION') => {
     const round = blueprint.interview_rounds[currentRound];
     const isTechnicalRound = currentRound === 0 || round.round_type === 'technical';
     const isLastRound = currentRound + 1 >= blueprint.interview_rounds.length;
+
+    addLog('Orchestrator', `Concluding ${isTechnicalRound ? 'Technical' : 'HR'} round [Trigger: ${triggerReason}]...`);
 
     // ── Phase 1: Closing State ─────────────────────────────────────────────
     if (isTechnicalRound) {
@@ -949,7 +1007,7 @@ CORE RULES & SILENT STANDBY:
                     <button
                       onClick={() => {
                         addLog('DevControl', '⏭️ Triggered immediate round conclusion & handoff');
-                        finishRound();
+                        finishRound('DEV_FAST_FORWARD');
                       }}
                       className="px-2.5 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 transition cursor-pointer"
                     >
@@ -1111,16 +1169,16 @@ CORE RULES & SILENT STANDBY:
                 </div>
                 {currentRound === 0 ? (
                   <button 
-                    onClick={finishRound} 
+                    onClick={() => finishRound('MANUAL_ADVANCE')} 
                     className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-bold text-xs transition shadow-md whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
-                    title="Advance to HR Round (Hackathon Fast-Forward)"
+                    title="Advance to HR Round (Fast-Forward)"
                   >
                     <span>Next Round (HR)</span>
                     <span className="text-blue-200">→</span>
                   </button>
                 ) : (
                   <button 
-                    onClick={finishRound} 
+                    onClick={() => finishRound('MANUAL_END')} 
                     className="px-4 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-lg font-bold text-xs transition shadow-md whitespace-nowrap flex items-center gap-1.5 cursor-pointer"
                     title="End Interview"
                   >
