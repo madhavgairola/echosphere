@@ -316,6 +316,40 @@ export interface CompanyInterviewerPool {
   [categoryOrRole: string]: InterviewerProfile[];
 }
 
+export type FloorState = 
+  | 'CANDIDATE_SPEAKING'
+  | 'PRIMARY_SPEAKING'
+  | 'CHALLENGER_SPEAKING'
+  | 'HR_SPEAKING'
+  | 'WAITING'
+  | 'TRANSITIONING'
+  | 'TECHNICAL_CLOSING'
+  | 'HR_CLOSING';
+
+export type AnswerClassification =
+  | 'VALID_STRONG'
+  | 'VALID_PARTIAL'
+  | 'VAGUE'
+  | 'INCORRECT'
+  | 'IRRELEVANT'
+  | 'GIBBERISH'
+  | 'NO_ANSWER'
+  | 'REPEATED_NON_ANSWER';
+
+export interface StructuredFloorRequest {
+  id: string;
+  agent: 'primary' | 'challenger' | 'hr';
+  agentId: string;
+  agentName: string;
+  requestFloor: boolean;
+  reason: string;
+  targetCompetency: string;
+  priority: 'low' | 'medium' | 'high';
+  proposedProbe?: string;
+  timestamp: number;
+  status: 'pending' | 'granted' | 'denied' | 'completed';
+}
+
 export interface FloorRequest {
   id: string;
   agentId: string;
@@ -326,6 +360,18 @@ export interface FloorRequest {
   timestamp: number;
 }
 
+export interface CompetencyTracker {
+  competency: string;
+  questionsAsked: string[];
+  candidateResponses: string[];
+  evidence: string[];
+  evidenceQuality: 'STRONG' | 'PARTIAL' | 'VAGUE' | 'NONE';
+  followUps: string[];
+  sufficientEvidence: boolean;
+  score?: number; // 0-100
+  notes?: string;
+}
+
 export interface CompetencyEvidence {
   id: string;
   timestamp: number;
@@ -333,7 +379,7 @@ export interface CompetencyEvidence {
   speaker: string;
   questionAsked: string;
   candidateUtterance: string;
-  classification: 'STRONG' | 'PARTIAL' | 'VAGUE' | 'INCORRECT' | 'IRRELEVANT' | 'GIBBERISH' | 'SILENCE';
+  classification: AnswerClassification;
   verbatimQuote?: string;
   qualityScore: number;
   topic?: string;
@@ -353,6 +399,7 @@ export interface ActivePanelAgent {
 export interface InterviewState {
   interviewId: string;
   currentRound: 'technical' | 'hr';
+  floorState: FloorState;
   currentTopic?: string;
   currentSpeaker?: string; // 'candidate' | agentId
   lastQuestion?: string;
@@ -362,7 +409,11 @@ export interface InterviewState {
   topicsCovered: string[];
   evidenceCollected: string[];
   structuredEvidence?: CompetencyEvidence[];
+  competencyTrackers?: CompetencyTracker[];
+  structuredFloorRequests?: StructuredFloorRequest[];
   agentFloorRequests: FloorRequest[];
+  lastChallengerTurnTime?: number;
+  lastChallengerTurnIndex?: number;
   roundProgress: number; // 0 to 100
   interviewStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'ROUND_COMPLETE' | 'PASSED' | 'FAILED' | 'COMPLETED';
   activeAgents: ActivePanelAgent[];

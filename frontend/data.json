@@ -1232,6 +1232,11 @@
           }
         ]
       }
+    },
+    {
+      "id": "matrix_cand_test_01",
+      "name": "Matrix Test Candidate",
+      "email": "test@example.com"
     }
   ],
   "applications": [
@@ -4516,6 +4521,17 @@
       "evaluationScore": 92,
       "evaluationSummary": "Alex Rivera demonstrated exceptional domain expertise in high-concurrency event pipelines, Go performance tuning, and ultra-low-latency real-time backend architecture. Their proven background in scaling event processing to 1.8M events/sec and optimizing p99 latency down to 11ms aligns perfectly with Nexora Labs' core platform requirements.",
       "decisionReason": "Alex Rivera demonstrated exceptional domain expertise in high-concurrency event pipelines, Go performance tuning, and ultra-low-latency real-time backend architecture. Their proven background in scaling event processing to 1.8M events/sec and optimizing p99 latency down to 11ms aligns perfectly with Nexora Labs' core platform requirements."
+    },
+    {
+      "id": "matrix_app_test_01",
+      "jobId": "j1",
+      "candidateId": "matrix_cand_test_01",
+      "resumeText": "Test Candidate with 5 years backend experience in Go and Kafka.",
+      "status": "SELECTED",
+      "evaluationScore": 91,
+      "evaluationSummary": "The candidate demonstrated exceptional technical mastery in low-level distributed systems engineering, Go concurrency, and Kafka internal mechanics, alongside crisp incident response leadership.",
+      "decisionStage": "FINAL_DECISION",
+      "decisionReason": "The candidate demonstrated exceptional technical mastery in low-level distributed systems engineering, Go concurrency, and Kafka internal mechanics, alongside crisp incident response leadership."
     }
   ],
   "interviews": [
@@ -4876,6 +4892,116 @@
         ]
       },
       "completedAt": "2026-09-05T18:32:51.425Z"
+    },
+    {
+      "id": "matrix_eval_test_01",
+      "applicationId": "matrix_app_test_01",
+      "scheduledAt": "2026-09-05T19:10:32.629Z",
+      "status": "IN_PROGRESS",
+      "transcript": [],
+      "evaluations": []
+    },
+    {
+      "id": "matrix_eval_strong_01",
+      "applicationId": "matrix_app_test_01",
+      "scheduledAt": "2026-09-05T19:10:36.289Z",
+      "status": "COMPLETED",
+      "transcript": [
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Priya Nair",
+          "text": "How did you design batch replication in your Chronos-Raft engine?"
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Matrix Test Candidate",
+          "text": "In Chronos-Raft, we batch append-entry RPCs using non-blocking lock-free ring buffers in Go with atomic CAS operations to batch log entries to disk via fdatasync, maintaining sub-10ms p99 latency."
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Arjun Malhotra",
+          "text": "How do you prevent consumer rebalancing storms in Kafka under heavy partition load?"
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Matrix Test Candidate",
+          "text": "We utilize cooperative sticky assignors and isolate heartbeats on dedicated goroutines to avoid false lease timeouts during long GC pauses."
+        },
+        {
+          "round": "Round 2: HR Round",
+          "speaker": "Sarah Jenkins",
+          "text": "Tell me about how you handled a critical production incident."
+        },
+        {
+          "round": "Round 2: HR Round",
+          "speaker": "Matrix Test Candidate",
+          "text": "During a black-swan network partition, I coordinated the incident war room, applied a rate-limiting circuit breaker, and conducted a blameless post-mortem establishing automated canary alerts."
+        }
+      ],
+      "evaluations": [
+        {
+          "round": "Round 1: Technical Panel",
+          "decision": "PASS",
+          "score": 88,
+          "reason": "The candidate provided concrete technical mechanisms for Raft batch replication and Go concurrency control, citing fdatasync, atomic CAS ring buffers, and dedicated goroutines for heartbeats. The candidate demonstrated high technical depth and strong evidence across both rubric competencies."
+        }
+      ],
+      "scorecard": {
+        "overall_recommendation": "Strong Hire",
+        "overallScore": 91,
+        "confidence": "HIGH",
+        "overall_summary": "The candidate demonstrated exceptional technical mastery in low-level distributed systems engineering, Go concurrency, and Kafka internal mechanics, alongside crisp incident response leadership.",
+        "strengths": [
+          "Deep technical execution in lock-free ring buffers, atomic CAS operations, and fdatasync disk persistence in Go.",
+          "Strong understanding of Kafka rebalance mechanics using cooperative sticky assignors and heartbeat thread isolation.",
+          "Structured incident management response emphasizing rate-limiting circuit breakers and blameless post-mortems."
+        ],
+        "weaknesses": [
+          "Did not explicitly discuss TypeScript/Node.js or database connection pooling as outlined in the job description."
+        ],
+        "rubric_evaluations": [
+          {
+            "pillar": "Technical Problem Solving",
+            "competencyScore": 92,
+            "evidenceQuality": "STRONG",
+            "evidence": [
+              "In Chronos-Raft, we batch append-entry RPCs using non-blocking lock-free ring buffers in Go with atomic CAS operations to batch log entries to disk via fdatasync, maintaining sub-10ms p99 latency."
+            ],
+            "missingEvidence": [
+              "Explicit trade-off analysis of ring buffer backpressure strategies during memory exhaustion."
+            ],
+            "confidence": "HIGH",
+            "feedback": "Exhibited superior architectural understanding of distributed consensus logging and low-latency disk serialization."
+          },
+          {
+            "pillar": "Domain Codecraft",
+            "competencyScore": 90,
+            "evidenceQuality": "STRONG",
+            "evidence": [
+              "We utilize cooperative sticky assignors and isolate heartbeats on dedicated goroutines to avoid false lease timeouts during long GC pauses."
+            ],
+            "missingEvidence": [
+              "Hands-on execution details regarding TypeScript microservices or PostgreSQL optimization."
+            ],
+            "confidence": "HIGH",
+            "feedback": "Showcased expert-level mechanics in Go concurrency models and Kafka consumer group rebalance mitigation."
+          },
+          {
+            "pillar": "Culture & Communication",
+            "competencyScore": 91,
+            "evidenceQuality": "STRONG",
+            "evidence": [
+              "During a black-swan network partition, I coordinated the incident war room, applied a rate-limiting circuit breaker, and conducted a blameless post-mortem establishing automated canary alerts."
+            ],
+            "missingEvidence": [
+              "Specific cross-team collaboration mechanisms outside of crisis war rooms."
+            ],
+            "confidence": "HIGH",
+            "feedback": "Demonstrated concise, high-impact communication with strong operational ownership and commitment to blameless engineering culture."
+          }
+        ]
+      },
+      "completedAt": "2026-09-05T19:10:55.513Z"
     }
   ],
   "blueprints": [

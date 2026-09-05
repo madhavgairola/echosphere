@@ -1,65 +1,132 @@
-import { InterviewState, FloorRequest, ActivePanelAgent, InterviewerProfile, CompetencyEvidence } from '@/lib/db';
+import { 
+  InterviewState, 
+  FloorState, 
+  AnswerClassification, 
+  FloorRequest, 
+  StructuredFloorRequest, 
+  ActivePanelAgent, 
+  InterviewerProfile, 
+  CompetencyEvidence, 
+  CompetencyTracker 
+} from '@/lib/db';
 
 /**
- * Technical trigger keywords that prompt the Technical Lead / Challenger to intervene.
- * Deterministic matching without expensive per-turn LLM calls.
+ * Architectural triggers that indicate the Candidate made a concrete technical claim.
+ * Used by the Challenger agent to formulate structured floor requests.
  */
-const SCALABILITY_TRIGGERS = [
-  { pattern: /\b(\d+\s*(?:million|billion|m|k))\s*(?:req|request|query|event|user|tps|qps)/i, reason: 'candidate_claimed_high_scale', probeType: 'traffic_spike' },
-  { pattern: /\b(distributed|sharding|partition|replica|replication|cluster)\b/i, reason: 'candidate_mentioned_distributed_storage', probeType: 'partition_tolerance' },
-  { pattern: /\b(kafka|pubsub|event-driven|message\s*queue|rabbitmq)\b/i, reason: 'candidate_mentioned_event_streaming', probeType: 'backpressure_and_ordering' },
-  { pattern: /\b(microservice|micro-service|service\s*mesh)\b/i, reason: 'candidate_mentioned_microservices', probeType: 'service_failure_and_latency' },
-  { pattern: /\b(cache|redis|memcached|invalidation)\b/i, reason: 'candidate_mentioned_caching', probeType: 'cache_stampede_and_invalidation' },
-  { pattern: /\b(concurrency|multithread|asyncio|race\s*condition|deadlock|mutex|lock)\b/i, reason: 'candidate_mentioned_concurrency', probeType: 'race_condition_prevention' },
-  { pattern: /\b(rag|vector|embedding|cosine|faiss|chroma|pinecone)\b/i, reason: 'candidate_mentioned_rag_pipeline', probeType: 'vector_index_latency_and_drift' },
-  { pattern: /\b(vllm|tensorrt|gpu|quantization|awq|fp8|speculative)\b/i, reason: 'candidate_mentioned_gpu_serving', probeType: 'gpu_memory_and_kv_cache' },
-  { pattern: /\b(webrtc|turn|stun|sdp|ice|audio\s*track|real-time\s*voice)\b/i, reason: 'candidate_mentioned_webrtc_audio', probeType: 'packet_loss_and_jitter' },
-  { pattern: /\b(kubernetes|k8s|helm|autoscaling|hpa|ingress)\b/i, reason: 'candidate_mentioned_kubernetes', probeType: 'graceful_pod_termination' },
-  { pattern: /\b(raft|paxos|consensus|quorum|leader\s*election|split-brain)\b/i, reason: 'candidate_mentioned_consensus', probeType: 'split_brain_and_network_partitions' }
+export const ARCHITECTURAL_TRIGGERS = [
+  { pattern: /\b(\d+\s*(?:million|billion|m|k))\s*(?:req|request|query|event|user|tps|qps)/i, reason: 'candidate_claimed_high_scale', competency: 'Scalability & Throughput', probeType: 'traffic_spike' },
+  { pattern: /\b(distributed|sharding|partition|replica|replication|cluster)\b/i, reason: 'candidate_claimed_distributed_storage', competency: 'Distributed Systems & Partitioning', probeType: 'partition_tolerance' },
+  { pattern: /\b(kafka|pubsub|event-driven|message\s*queue|rabbitmq)\b/i, reason: 'candidate_claimed_event_streaming', competency: 'Event Streaming & Backpressure', probeType: 'backpressure_and_ordering' },
+  { pattern: /\b(microservice|micro-service|service\s*mesh)\b/i, reason: 'candidate_claimed_microservices', competency: 'Service Architecture & Latency', probeType: 'service_failure_and_latency' },
+  { pattern: /\b(cache|redis|memcached|invalidation)\b/i, reason: 'candidate_claimed_caching_layer', competency: 'Caching & Data Consistency', probeType: 'cache_stampede_and_invalidation' },
+  { pattern: /\b(concurrency|multithread|asyncio|race\s*condition|deadlock|mutex|lock|goroutine)\b/i, reason: 'candidate_claimed_concurrency_model', competency: 'Concurrency & Thread Safety', probeType: 'race_condition_prevention' },
+  { pattern: /\b(rag|vector|embedding|cosine|faiss|chroma|pinecone)\b/i, reason: 'candidate_claimed_rag_pipeline', competency: 'AI/Vector Infrastructure', probeType: 'vector_index_latency_and_drift' },
+  { pattern: /\b(webrtc|turn|stun|sdp|ice|audio\s*track|real-time\s*voice)\b/i, reason: 'candidate_claimed_webrtc_audio', competency: 'Real-Time Media Transport', probeType: 'packet_loss_and_jitter' },
+  { pattern: /\b(raft|paxos|consensus|quorum|leader\s*election|split-brain)\b/i, reason: 'candidate_claimed_distributed_consensus', competency: 'Consensus & Failure Recovery', probeType: 'split_brain_and_network_partitions' }
 ];
 
 /**
- * Classifies the technical quality and structure of a candidate utterance heuristically.
+ * Sets the authoritative floor state and derives active agent floor ownership strictly.
+ * Invariant: At most ONE AI speaker holds the floor at any time.
  */
-export function classifyCandidateAnswer(utterance: string): {
-  classification: 'STRONG' | 'PARTIAL' | 'VAGUE' | 'INCORRECT' | 'IRRELEVANT' | 'GIBBERISH' | 'SILENCE';
+export function setAuthoritativeFloorState(state: InterviewState, newFloorState: FloorState): InterviewState {
+  const updated = { ...state };
+  updated.floorState = newFloorState;
+  updated.updatedAt = new Date().toISOString();
+
+  // Derive hasFloor boolean strictly from authoritative floorState
+  updated.activeAgents = updated.activeAgents.map(agent => {
+    let hasFloor = false;
+    if (newFloorState === 'PRIMARY_SPEAKING' && agent.isPrimary && updated.currentRound === 'technical') {
+      hasFloor = true;
+    } else if (newFloorState === 'CHALLENGER_SPEAKING' && !agent.isPrimary && updated.currentRound === 'technical') {
+      hasFloor = true;
+    } else if (newFloorState === 'HR_SPEAKING' && updated.currentRound === 'hr') {
+      hasFloor = true;
+    }
+    return { ...agent, hasFloor };
+  });
+
+  if (newFloorState === 'PRIMARY_SPEAKING') {
+    const primary = updated.activeAgents.find(a => a.isPrimary);
+    if (primary) updated.currentSpeaker = primary.agentId;
+  } else if (newFloorState === 'CHALLENGER_SPEAKING') {
+    const challenger = updated.activeAgents.find(a => !a.isPrimary);
+    if (challenger) updated.currentSpeaker = challenger.agentId;
+  } else if (newFloorState === 'HR_SPEAKING') {
+    const hr = updated.activeAgents[0];
+    if (hr) updated.currentSpeaker = hr.agentId;
+  } else if (newFloorState === 'CANDIDATE_SPEAKING') {
+    updated.currentSpeaker = 'candidate';
+  }
+
+  return updated;
+}
+
+/**
+ * Classifies candidate utterance according to the hard 8-point answer taxonomy.
+ */
+export function classifyCandidateAnswer(utterance: string, previousAttemptsOnQuestion: number = 0): {
+  classification: AnswerClassification;
   qualityScore: number;
   isGibberish: boolean;
   verbatimQuote?: string;
 } {
   const clean = utterance.trim();
-  if (!clean || clean.length < 5) {
-    return { classification: 'SILENCE', qualityScore: 0, isGibberish: false };
+  if (!clean || clean.length < 4) {
+    return { classification: 'NO_ANSWER', qualityScore: 0, isGibberish: false };
   }
 
-  // Check for gibberish patterns: keyboard mashing, repeated characters, very high entropy of nonsense tokens
+  // Check for repeated non-answers (candidate failed after 2 attempts)
+  if (previousAttemptsOnQuestion >= 2 && clean.length < 30) {
+    return { classification: 'REPEATED_NON_ANSWER', qualityScore: 10, isGibberish: false };
+  }
+
+  // Common evasion / silence / refusal phrases
+  if (/^(i don't know|no idea|can we skip|pass|not sure|i am not sure|next question|let's move on)\b/i.test(clean)) {
+    return { classification: 'NO_ANSWER', qualityScore: 10, isGibberish: false };
+  }
+
+  // Gibberish detection: keyboard mashing, repeated characters, very high entropy of nonsense tokens
   const words = clean.split(/\s+/).filter(Boolean);
   const repeatedWords = words.filter((w, i) => words.indexOf(w) !== i && w.length > 3);
   const repetitionRatio = words.length > 0 ? repeatedWords.length / words.length : 0;
   const avgWordLength = words.reduce((acc, w) => acc + w.length, 0) / (words.length || 1);
 
-  // Common technical terms check
-  const techTermMatches = clean.match(/\b(api|async|await|buffer|cache|channel|cluster|concurrency|database|deadlock|distributed|event|goroutine|grpc|http|index|kafka|latency|lock|log|memory|message|microservice|mutex|network|node|optimize|packet|partition|pipeline|postgres|process|proto|pubsub|query|queue|raft|redis|replica|request|scale|server|service|socket|stream|sync|tcp|thread|throughput|timeout|transaction|vector|webrtc|websocket)\b/gi) || [];
+  const keyboardMashing = /(asdf|qwer|zxcv|hjkl|jkl;|1234|test test|blah blah|lorem ipsum)/i.test(clean);
+  const techTermMatches = clean.match(/\b(api|async|await|batch|buffer|cache|channel|cluster|concurrency|database|deadlock|distributed|event|goroutine|grpc|http|index|kafka|latency|lock|log|memory|message|microservice|mutex|network|node|optimize|packet|partition|pipeline|postgres|process|proto|pubsub|query|queue|raft|redis|replica|request|scale|server|service|socket|stream|sync|tcp|thread|throughput|timeout|transaction|vector|webrtc|websocket)\b/gi) || [];
 
-  if (words.length < 4 && techTermMatches.length === 0) {
-    if (/\b(yes|no|maybe|idk|sure|ok|okay|fine|stuff|thing|things)\b/i.test(clean)) {
-      return { classification: 'VAGUE', qualityScore: 20, isGibberish: false };
-    }
-  }
-
-  if (repetitionRatio > 0.6 || avgWordLength > 18 || (words.length > 5 && techTermMatches.length === 0 && !/[a-zA-Z]{3,}/.test(clean))) {
+  if (keyboardMashing || repetitionRatio > 0.6 || avgWordLength > 18 || (words.length > 4 && techTermMatches.length === 0 && !/[a-zA-Z]{3,}/.test(clean))) {
     return { classification: 'GIBBERISH', qualityScore: 5, isGibberish: true };
   }
 
-  // Strong answer: long enough, contains concrete technical keywords and structured explanations
-  if (clean.length >= 60 && techTermMatches.length >= 2) {
-    const verbatimQuote = clean.slice(0, 160) + (clean.length > 160 ? '...' : '');
-    return { classification: 'STRONG', qualityScore: 85, isGibberish: false, verbatimQuote };
+  // Vague / hand-wavey: lacks concrete technical nouns or architectural mechanisms
+  if (words.length < 6 && techTermMatches.length === 0) {
+    if (/\b(yes|no|maybe|idk|sure|ok|okay|fine|stuff|thing|things|standard|normal|good)\b/i.test(clean)) {
+      return { classification: 'VAGUE', qualityScore: 25, isGibberish: false };
+    }
   }
 
-  if (clean.length >= 30 && techTermMatches.length >= 1) {
+  // Irrelevant: off-topic chatter (e.g. talking about the weather or personal hobbies when asked about Raft/Kafka)
+  if (/\b(weather|movie|game|football|cricket|lunch|dinner|vacation)\b/i.test(clean) && techTermMatches.length === 0) {
+    return { classification: 'IRRELEVANT', qualityScore: 15, isGibberish: false };
+  }
+
+  // Incorrect reasoning flag heuristic (e.g. claims TCP ensures zero latency or in-memory map survives process crash without WAL)
+  if (/\b(tcp.*zero latency|redis.*never loses data without persistence|mutex.*prevents network partition)\b/i.test(clean)) {
+    return { classification: 'INCORRECT', qualityScore: 35, isGibberish: false };
+  }
+
+  // Strong answer: long enough, contains concrete technical keywords and structured explanations
+  if (clean.length >= 50 && techTermMatches.length >= 2) {
+    const verbatimQuote = clean.slice(0, 160) + (clean.length > 160 ? '...' : '');
+    return { classification: 'VALID_STRONG', qualityScore: 85, isGibberish: false, verbatimQuote };
+  }
+
+  if (clean.length >= 25 && techTermMatches.length >= 1) {
     const verbatimQuote = clean.slice(0, 120) + (clean.length > 120 ? '...' : '');
-    return { classification: 'PARTIAL', qualityScore: 65, isGibberish: false, verbatimQuote };
+    return { classification: 'VALID_PARTIAL', qualityScore: 65, isGibberish: false, verbatimQuote };
   }
 
   return { classification: 'VAGUE', qualityScore: 35, isGibberish: false };
@@ -71,7 +138,13 @@ export function classifyCandidateAnswer(utterance: string): {
 export function createInitialInterviewState(
   interviewId: string,
   primaryAgent: InterviewerProfile,
-  challengerAgent: InterviewerProfile
+  challengerAgent: InterviewerProfile,
+  initialCompetencies: string[] = [
+    'Concurrency & Thread Safety',
+    'Distributed Systems & Consensus',
+    'Event Streaming & Throughput',
+    'Caching & Resilience'
+  ]
 ): InterviewState {
   const activeAgents: ActivePanelAgent[] = [
     {
@@ -96,16 +169,32 @@ export function createInitialInterviewState(
     }
   ];
 
+  const competencyTrackers: CompetencyTracker[] = initialCompetencies.map(comp => ({
+    competency: comp,
+    questionsAsked: [],
+    candidateResponses: [],
+    evidence: [],
+    evidenceQuality: 'NONE',
+    followUps: [],
+    sufficientEvidence: false,
+    score: 0
+  }));
+
   return {
     interviewId,
     currentRound: 'technical',
+    floorState: 'PRIMARY_SPEAKING',
     currentSpeaker: primaryAgent.interviewerId,
     conversationSummary: 'Technical panel interview initialized.',
     questionsAsked: [],
     topicsCovered: [],
     evidenceCollected: [],
     structuredEvidence: [],
+    competencyTrackers,
+    structuredFloorRequests: [],
     agentFloorRequests: [],
+    lastChallengerTurnTime: 0,
+    lastChallengerTurnIndex: 0,
     roundProgress: 0,
     interviewStatus: 'IN_PROGRESS',
     activeAgents,
@@ -114,19 +203,106 @@ export function createInitialInterviewState(
 }
 
 /**
+ * Evaluates and processes a structured Challenger floor request using strict arbiter rules.
+ * 
+ * Verification rules:
+ * 1. Candidate is not currently speaking.
+ * 2. Primary is not currently speaking.
+ * 3. No transition/closing state is active.
+ * 4. Challenger has not recently spoken (cooldown: at least 2 questions and 25s elapsed).
+ * 5. Proposed probe is relevant to target competency.
+ * 6. Probe is not a duplicate of an existing question.
+ * 7. Intervening adds meaningful evidence.
+ */
+export function evaluateChallengerFloorRequest(
+  state: InterviewState,
+  request: {
+    agentId: string;
+    agentName: string;
+    reason: string;
+    targetCompetency: string;
+    priority: 'low' | 'medium' | 'high';
+    proposedProbe?: string;
+  },
+  isPostUtterance: boolean = false
+): { granted: boolean; updatedState: InterviewState; decisionReason: string } {
+  const updated = { ...state };
+  const now = Date.now();
+
+  const reqId = `flr_${Math.random().toString(36).substring(2, 7)}`;
+  const floorReq: StructuredFloorRequest = {
+    id: reqId,
+    agent: 'challenger',
+    agentId: request.agentId,
+    agentName: request.agentName,
+    requestFloor: true,
+    reason: request.reason,
+    targetCompetency: request.targetCompetency,
+    priority: request.priority,
+    proposedProbe: request.proposedProbe,
+    timestamp: now,
+    status: 'pending'
+  };
+
+  if (!updated.structuredFloorRequests) updated.structuredFloorRequests = [];
+
+  // Check Rule 1 & 2: Speaker state (unless evaluating post-utterance where candidate just completed turn)
+  if (!isPostUtterance && updated.floorState === 'CANDIDATE_SPEAKING') {
+    floorReq.status = 'denied';
+    updated.structuredFloorRequests.push(floorReq);
+    return { granted: false, updatedState: updated, decisionReason: 'Denied: Candidate is actively speaking.' };
+  }
+
+  // Check Rule 3: Closing / Transition state
+  if (updated.floorState === 'TECHNICAL_CLOSING' || updated.floorState === 'HR_CLOSING' || updated.floorState === 'TRANSITIONING') {
+    floorReq.status = 'denied';
+    updated.structuredFloorRequests.push(floorReq);
+    return { granted: false, updatedState: updated, decisionReason: 'Denied: Round closing or transition in progress.' };
+  }
+
+  // Check Rule 4: Challenger turn cooldown (at least 2 questions asked since last turn, and at least 25s elapsed)
+  const questionsSinceLastTurn = updated.questionsAsked.length - (updated.lastChallengerTurnIndex || 0);
+  const timeSinceLastTurnMs = now - (updated.lastChallengerTurnTime || 0);
+  if (updated.lastChallengerTurnTime && (questionsSinceLastTurn < 2 || timeSinceLastTurnMs < 25000)) {
+    floorReq.status = 'denied';
+    updated.structuredFloorRequests.push(floorReq);
+    return { granted: false, updatedState: updated, decisionReason: `Denied: Challenger on cooldown (${questionsSinceLastTurn} questions / ${Math.round(timeSinceLastTurnMs/1000)}s elapsed).` };
+  }
+
+  // Check Rule 6: Duplicate question check
+  if (request.proposedProbe && updated.questionsAsked.some(q => q.toLowerCase().includes(request.proposedProbe!.toLowerCase().slice(0, 30)))) {
+    floorReq.status = 'denied';
+    updated.structuredFloorRequests.push(floorReq);
+    return { granted: false, updatedState: updated, decisionReason: 'Denied: Proposed probe duplicates a question already asked.' };
+  }
+
+  // Grant Floor!
+  floorReq.status = 'granted';
+  updated.structuredFloorRequests.push(floorReq);
+  updated.lastChallengerTurnTime = now;
+  updated.lastChallengerTurnIndex = updated.questionsAsked.length;
+  
+  const stateWithFloor = setAuthoritativeFloorState(updated, 'CHALLENGER_SPEAKING');
+  return { 
+    granted: true, 
+    updatedState: stateWithFloor, 
+    decisionReason: `Granted: ${request.reason} for ${request.targetCompetency}.` 
+  };
+}
+
+/**
  * Records a candidate utterance into the shared state.
- * Evaluates answer quality and determines whether the Specialist should request the floor.
+ * Transitions floorState to CANDIDATE_SPEAKING and records structured evidence.
  */
 export function recordCandidateUtterance(
   state: InterviewState,
   utterance: string
-): { updatedState: InterviewState; newFloorRequest?: FloorRequest; qualityReport?: any } {
+): { updatedState: InterviewState; qualityReport: any; floorRequestResult?: any } {
   const clean = utterance.trim();
-  if (!clean) return { updatedState: state };
+  if (!clean) return { updatedState: state, qualityReport: { classification: 'NO_ANSWER', qualityScore: 0 } };
 
-  const updated = { ...state };
+  let updated = setAuthoritativeFloorState(state, 'CANDIDATE_SPEAKING');
   updated.candidateAnswer = clean;
-  updated.updatedAt = new Date().toISOString();
 
   // Classify answer quality
   const quality = classifyCandidateAnswer(clean);
@@ -137,7 +313,7 @@ export function recordCandidateUtterance(
     timestamp: Date.now(),
     round: updated.currentRound,
     speaker: 'Candidate',
-    questionAsked: updated.lastQuestion || 'Introductory / Technical Question',
+    questionAsked: updated.lastQuestion || 'Core Technical Architecture',
     candidateUtterance: clean,
     classification: quality.classification,
     verbatimQuote: quality.verbatimQuote,
@@ -148,121 +324,65 @@ export function recordCandidateUtterance(
   if (!updated.structuredEvidence) updated.structuredEvidence = [];
   updated.structuredEvidence.push(evidenceRecord);
 
-  // Extract quick evidence snippet
+  // Update corresponding Competency Tracker
+  if (updated.competencyTrackers && updated.competencyTrackers.length > 0) {
+    const targetComp = updated.competencyTrackers.find(c => 
+      (updated.currentTopic && c.competency.toLowerCase().includes(updated.currentTopic.toLowerCase())) ||
+      c.questionsAsked.includes(updated.lastQuestion || '')
+    ) || updated.competencyTrackers[0];
+
+    if (targetComp) {
+      targetComp.candidateResponses.push(clean);
+      if (quality.classification === 'VALID_STRONG' || quality.classification === 'VALID_PARTIAL') {
+        if (quality.verbatimQuote && !targetComp.evidence.includes(quality.verbatimQuote)) {
+          targetComp.evidence.push(quality.verbatimQuote);
+        }
+        targetComp.evidenceQuality = quality.classification === 'VALID_STRONG' ? 'STRONG' : 'PARTIAL';
+        if (targetComp.evidence.length >= 2) {
+          targetComp.sufficientEvidence = true;
+        }
+        targetComp.score = Math.min(100, (targetComp.score || 0) + (quality.classification === 'VALID_STRONG' ? 45 : 30));
+      } else if (quality.classification === 'GIBBERISH' || quality.classification === 'NO_ANSWER') {
+        targetComp.evidenceQuality = 'NONE';
+      }
+    }
+  }
+
+  // Extract quick evidence snippet if valid
   if (quality.verbatimQuote && !updated.evidenceCollected.includes(quality.verbatimQuote)) {
     updated.evidenceCollected = [...updated.evidenceCollected, quality.verbatimQuote];
   }
 
-  // Check if candidate explicitly addressed an agent by name
-  let targetAgent: ActivePanelAgent | undefined;
-  for (const agent of updated.activeAgents) {
-    if (agent.isActive && clean.toLowerCase().includes(agent.name.toLowerCase())) {
-      targetAgent = agent;
-      break;
-    }
-  }
-
-  if (targetAgent && !targetAgent.hasFloor) {
-    const floorReq: FloorRequest = {
-      id: `flr_${Math.random().toString(36).substring(2, 7)}`,
-      agentId: targetAgent.agentId,
-      agentName: targetAgent.name,
-      reason: `candidate_explicitly_addressed_${targetAgent.name.toLowerCase()}`,
-      urgency: 'high',
-      proposedProbe: `Candidate addressed ${targetAgent.name} directly.`,
-      timestamp: Date.now()
-    };
-    updated.agentFloorRequests = [...updated.agentFloorRequests, floorReq];
-    return { updatedState: updated, newFloorRequest: floorReq, qualityReport: quality };
-  }
-
-  // During technical round, evaluate if the Challenger agent should intervene
+  // During technical round, evaluate if the Challenger should request the floor
+  let floorRequestResult: any = null;
   if (updated.currentRound === 'technical') {
     const challenger = updated.activeAgents.find(a => !a.isPrimary && a.isActive);
 
-    if (challenger && !challenger.hasFloor) {
-      // Check for scalability and architecture triggers
-      for (const trigger of SCALABILITY_TRIGGERS) {
+    if (challenger) {
+      for (const trigger of ARCHITECTURAL_TRIGGERS) {
         const match = clean.match(trigger.pattern);
         if (match) {
-          const alreadyRequested = updated.agentFloorRequests.some(r => r.reason === trigger.reason);
-          if (!alreadyRequested) {
-            const floorReq: FloorRequest = {
-              id: `flr_${Math.random().toString(36).substring(2, 7)}`,
-              agentId: challenger.agentId,
-              agentName: challenger.name,
-              reason: trigger.reason,
-              urgency: 'high',
-              proposedProbe: `Candidate claimed "${match[0]}". Probe ${trigger.probeType.replace(/_/g, ' ')}.`,
-              timestamp: Date.now()
-            };
-            updated.agentFloorRequests = [...updated.agentFloorRequests, floorReq];
-            return { updatedState: updated, newFloorRequest: floorReq, qualityReport: quality };
-          }
+          const arbiterRes = evaluateChallengerFloorRequest(updated, {
+            agentId: challenger.agentId,
+            agentName: challenger.name,
+            reason: trigger.reason,
+            targetCompetency: trigger.competency,
+            priority: 'medium',
+            proposedProbe: `Candidate claimed "${match[0]}". Probe ${trigger.probeType.replace(/_/g, ' ')}.`
+          }, true);
+          updated = arbiterRes.updatedState;
+          floorRequestResult = arbiterRes;
+          break;
         }
       }
     }
   }
 
-  return { updatedState: updated, qualityReport: quality };
+  return { updatedState: updated, qualityReport: quality, floorRequestResult };
 }
 
 /**
- * Deterministic Turn Arbiter floor control decision.
- * Determines who speaks next without expensive per-turn LLM calls.
- */
-export function arbitrateNextTurn(state: InterviewState): {
-  nextSpeakerId: string;
-  nextSpeakerName: string;
-  action: 'continue' | 'intervene' | 'handoff';
-  grantedRequest?: FloorRequest;
-  updatedState: InterviewState;
-} {
-  const updated = { ...state };
-  const primary = updated.activeAgents.find(a => a.isPrimary && a.isActive);
-
-  // If there are floor requests from the challenger, grant floor to challenger
-  if (updated.agentFloorRequests.length > 0) {
-    const granted = updated.agentFloorRequests[0];
-    updated.agentFloorRequests = updated.agentFloorRequests.slice(1);
-
-    // Update floor ownership
-    updated.currentSpeaker = granted.agentId;
-    updated.activeAgents = updated.activeAgents.map(a => ({
-      ...a,
-      hasFloor: a.agentId === granted.agentId
-    }));
-    updated.updatedAt = new Date().toISOString();
-
-    return {
-      nextSpeakerId: granted.agentId,
-      nextSpeakerName: granted.agentName,
-      action: 'intervene',
-      grantedRequest: granted,
-      updatedState: updated
-    };
-  }
-
-  // Otherwise, default back to Primary Interviewer to drive the blueprint
-  const defaultAgent = primary || updated.activeAgents.find(a => a.isActive) || { agentId: 'system', name: 'Interviewer' };
-  
-  updated.currentSpeaker = defaultAgent.agentId;
-  updated.activeAgents = updated.activeAgents.map(a => ({
-    ...a,
-    hasFloor: a.agentId === defaultAgent.agentId
-  }));
-  updated.updatedAt = new Date().toISOString();
-
-  return {
-    nextSpeakerId: defaultAgent.agentId,
-    nextSpeakerName: defaultAgent.name,
-    action: 'continue',
-    updatedState: updated
-  };
-}
-
-/**
- * Records an agent question / turn into the shared state.
+ * Records an agent question / turn and sets authoritative floorState.
  */
 export function recordAgentTurn(
   state: InterviewState,
@@ -271,17 +391,36 @@ export function recordAgentTurn(
   topic?: string
 ): InterviewState {
   const clean = question.trim();
-  const updated = { ...state };
+  let updated = { ...state };
 
+  // Set floor state based on agent role
+  const isPrimary = updated.activeAgents.find(a => a.agentId === agentId)?.isPrimary ?? true;
+  const newFloorState: FloorState = updated.currentRound === 'hr' 
+    ? 'HR_SPEAKING' 
+    : isPrimary ? 'PRIMARY_SPEAKING' : 'CHALLENGER_SPEAKING';
+
+  updated = setAuthoritativeFloorState(updated, newFloorState);
   updated.lastQuestion = clean;
   updated.currentSpeaker = agentId;
   updated.questionsAsked = [...updated.questionsAsked, clean];
 
-  if (topic && !updated.topicsCovered.includes(topic)) {
-    updated.topicsCovered = [...updated.topicsCovered, topic];
+  if (topic) {
+    updated.currentTopic = topic;
+    if (!updated.topicsCovered.includes(topic)) {
+      updated.topicsCovered = [...updated.topicsCovered, topic];
+    }
   }
 
-  // Calculate rough round progress
+  // Update corresponding competency tracker
+  if (updated.competencyTrackers && updated.competencyTrackers.length > 0) {
+    const tracker = updated.competencyTrackers.find(c => 
+      topic ? c.competency.toLowerCase().includes(topic.toLowerCase()) : false
+    ) || updated.competencyTrackers[0];
+    if (tracker) {
+      tracker.questionsAsked.push(clean);
+    }
+  }
+
   const targetQuestions = updated.currentRound === 'technical' ? 8 : 4;
   updated.roundProgress = Math.min(100, Math.round((updated.questionsAsked.length / targetQuestions) * 100));
   updated.updatedAt = new Date().toISOString();
@@ -290,9 +429,15 @@ export function recordAgentTurn(
 }
 
 /**
+ * Yields floor back to candidate / waiting state after an AI agent finishes asking a question.
+ */
+export function yieldFloorToCandidate(state: InterviewState): InterviewState {
+  return setAuthoritativeFloorState(state, 'WAITING');
+}
+
+/**
  * Transitions state to HR Round cleanly.
- * DEACTIVATES technical agents, ACTIVATES single HR agent.
- * Prepares HR agent with technical summary and evidence.
+ * DEACTIVATES technical agents, ACTIVATES single HR agent, sets floorState to HR_SPEAKING.
  */
 export function transitionToHRRound(
   state: InterviewState,
@@ -300,15 +445,16 @@ export function transitionToHRRound(
   technicalScore: number,
   technicalDecisionReason: string
 ): InterviewState {
-  const updated = { ...state };
+  let updated = { ...state };
 
   updated.currentRound = 'hr';
   updated.interviewStatus = 'IN_PROGRESS';
   updated.roundProgress = 0;
+  updated.structuredFloorRequests = [];
   updated.agentFloorRequests = [];
   updated.currentSpeaker = hrAgent.interviewerId;
 
-  // Deactivate all technical agents, activate HR agent
+  // Deactivate all technical agents, activate single HR agent
   updated.activeAgents = [
     {
       agentId: hrAgent.interviewerId,
@@ -322,10 +468,12 @@ export function transitionToHRRound(
     }
   ];
 
-  // Store technical summary for HR reference
+  updated = setAuthoritativeFloorState(updated, 'HR_SPEAKING');
+
   const techEvidenceSummary = `Technical Round Passed (Score: ${technicalScore}/100). Highlights: ${updated.evidenceCollected.slice(0, 3).join('; ')}. Panel Notes: ${technicalDecisionReason}`;
   updated.conversationSummary = `${updated.conversationSummary}\n--- TECHNICAL ROUND COMPLETED ---\n${techEvidenceSummary}`;
   updated.updatedAt = new Date().toISOString();
 
   return updated;
 }
+

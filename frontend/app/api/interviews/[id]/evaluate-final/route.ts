@@ -134,32 +134,45 @@ Analyze the complete multi-round interview transcript (Technical Panel + HR Roun
 
 CRITICAL EVALUATION RULES:
 1. EVIDENCE GROUNDING: You MUST evaluate ONLY what the candidate actually said in the transcript. Do NOT assume, extrapolate, or hallucinate skills.
-2. SCORE CALIBRATION & GUARDRAILS:
-   - Strong Hire (88-100): Candidate demonstrated mastery, gave precise quantitative mechanics, and answered deep-dive probes with clarity.
-   - Hire (75-87): Solid technical competencies, structured communication, minor gaps in edge-case optimization.
-   - Leaning Hire / Leaning No Hire (50-74): Inconsistent technical depth or vague answers on key topics.
-   - No Hire (< 50): Provided gibberish, non-answers, or failed core technical questions.
-3. EVIDENCE CITATION: Every positive rubric evaluation MUST cite verbatim quotes from the candidate from the transcript.
+2. COMPETENCY EVIDENCE SCHEMA:
+   For every rubric competency, you must explicitly output:
+   - "pillar": Name of the competency / pillar
+   - "competencyScore": number (0-100)
+   - "evidenceQuality": "STRONG" | "PARTIAL" | "VAGUE" | "NONE"
+   - "evidence": array of verbatim candidate quotes
+   - "missingEvidence": array of missing concepts or omitted mechanisms
+   - "confidence": "HIGH" | "MEDIUM" | "LOW"
+   - "feedback": 1-2 sentence assessment
+3. NO EVIDENCE = NO POSITIVE SCORE:
+   - If no evidence exists in the transcript for a competency, score must be <= 30 and evidenceQuality must be "NONE".
+4. WEAK/PARTIAL EVIDENCE = CONSTRAINED SCORE:
+   - If evidence is vague or lacking implementation details, evidenceQuality must be "VAGUE" or "PARTIAL", score 40-65.
+5. STRONG EVIDENCE = HIGH SCORE:
+   - High scores (80+) require sufficient, competency-specific, verbatim candidate quotes.
+6. OVERALL RECOMMENDATION:
+   - "Strong Hire" (88-100): Mastery demonstrated across all pillars with deep verbatim evidence.
+   - "Hire" (75-87): Solid competencies, structured communication, minor trade-off gaps.
+   - "Leaning Hire" (60-74): Acceptable foundations but inconsistent depth.
+   - "Leaning No Hire" (45-59): Significant technical gaps or missing evidence.
+   - "No Hire" (< 45): Minimal/no demonstrable evidence, gibberish, or failed core questions.
 
 You MUST return ONLY valid JSON matching this exact structure:
 {
   "overall_recommendation": "Strong Hire" | "Hire" | "Leaning Hire" | "Leaning No Hire" | "No Hire",
-  "overallScore": <number 0-100>,
-  "overall_summary": "A concise 2-3 sentence executive assessment of the candidate's performance across both rounds.",
+  "overallScore": <number 0-100 derived from competency scores>,
+  "confidence": "HIGH" | "MEDIUM" | "LOW",
+  "overall_summary": "A concise 2-3 sentence executive assessment of the candidate's performance across both rounds based on concrete transcript evidence.",
   "strengths": ["<Specific demonstrated technical strength with evidence>"],
-  "weaknesses": ["<Specific area for improvement or trade-off missed>"],
+  "weaknesses": ["<Specific missing trade-off, lack of depth, or unverified claim>"],
   "rubric_evaluations": [
     {
-      "pillar": "Technical Depth & Codecraft",
-      "score": <1-5>,
-      "feedback": "<Concrete feedback based on transcript>",
-      "evidence": ["<Verbatim candidate quote>"]
-    },
-    {
-      "pillar": "Behavioral & Culture Alignment",
-      "score": <1-5>,
-      "feedback": "<Concrete feedback based on transcript>",
-      "evidence": ["<Verbatim candidate quote>"]
+      "pillar": "Technical Problem Solving & Architecture",
+      "competencyScore": 85,
+      "evidenceQuality": "STRONG",
+      "evidence": ["<Verbatim candidate quote>"],
+      "missingEvidence": ["<Specific edge case or trade-off missed>"],
+      "confidence": "HIGH",
+      "feedback": "Demonstrated deep command of distributed consensus and concurrency."
     }
   ]
 }`;
@@ -192,13 +205,14 @@ Generate the JSON Scorecard.`;
 
         // Post-validation guardrail on LLM output
         if (score >= 80 && stats.verbatimQuotes.length < 2) {
-          score = 72;
+          score = 70;
           rec = 'Leaning Hire';
         }
 
         scorecard = {
           overall_recommendation: rec,
           overallScore: score,
+          confidence: parsed.confidence || 'HIGH',
           overall_summary: parsed.overall_summary || `Candidate completed the interview panel with an overall score of ${score}/100.`,
           strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ["Clear communication during technical panel"],
           weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : ["Could provide more quantitative benchmarking in system design"],
@@ -212,6 +226,7 @@ Generate the JSON Scorecard.`;
         scorecard = {
           overall_recommendation: isHire ? "Hire" : "Leaning Hire",
           overallScore: baseScore,
+          confidence: "MEDIUM",
           overall_summary: `Candidate demonstrated solid technical competencies across ${stats.substantiveCount} technical topics and communicative ability throughout the panel and HR interview rounds for ${job?.title || 'the role'}.`,
           strengths: [
             "Structured problem decomposition and architectural understanding",
@@ -220,20 +235,15 @@ Generate the JSON Scorecard.`;
           weaknesses: [
             "Could deepen quantitative benchmarking and metric tracking in system design"
           ],
-          rubric_evaluations: [
-            {
-              pillar: "Technical Depth",
-              score: isHire ? 4 : 3,
-              feedback: "Demonstrated solid foundation and practical hands-on knowledge.",
-              evidence: stats.verbatimQuotes.slice(0, 2)
-            },
-            {
-              pillar: "Culture & Collaboration",
-              score: 4,
-              feedback: "Clear communication and strong ownership mindset.",
-              evidence: stats.verbatimQuotes.slice(2, 3)
-            }
-          ]
+          rubric_evaluations: Object.keys(rubric || {}).map(pillar => ({
+            pillar,
+            competencyScore: isHire ? 80 : 65,
+            evidenceQuality: isHire ? "STRONG" : "PARTIAL",
+            evidence: stats.verbatimQuotes.slice(0, 2),
+            missingEvidence: isHire ? [] : ["Detailed multi-region failover mechanics"],
+            confidence: "MEDIUM",
+            feedback: "Demonstrated practical knowledge in discussion."
+          }))
         };
       }
     }

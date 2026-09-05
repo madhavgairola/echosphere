@@ -225,7 +225,7 @@ export default function InterviewRoom({
 
   // Handle Candidate Utterance & Deterministic Floor Arbitration
   const handleCandidateUtterance = async (utterance: string) => {
-    if (!utterance || utterance.length < 10) return;
+    if (!utterance || utterance.length < 8) return;
     try {
       const res = await fetch(`/api/interviews/${interviewId}/state`, {
         method: 'POST',
@@ -234,48 +234,37 @@ export default function InterviewRoom({
       });
       const stateData = await res.json();
       
-      if (stateData.newFloorRequest) {
-        const req = stateData.newFloorRequest;
-        addLog('Turn Arbiter', `Floor requested by ${req.agentName}: ${req.proposedProbe || req.reason}`);
-        setPendingFloorNotice(`⚡ ${req.agentName} requested floor: ${req.proposedProbe || req.reason}`);
+      if (stateData.qualityReport) {
+        addLog('Answer Classifier', `Response: ${stateData.qualityReport.classification} (Score: ${stateData.qualityReport.qualityScore})`);
+      }
 
-        // Arbitrate turn
-        const arbRes = await fetch(`/api/interviews/${interviewId}/state`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'ARBITRATE_TURN' })
-        });
-        const arbData = await arbRes.json();
-        
-        if (arbData.action === 'intervene') {
-          addLog('Turn Arbiter', `Floor granted to Specialist: ${arbData.nextSpeakerName} stepping in for probe.`);
-          setFloorOwner('CHALLENGER_AI');
-          currentFloorRef.current = 'CHALLENGER_AI';
-          remoteAudioTracksRef.current.get(9991)?.setVolume(0);
-          remoteAudioTracksRef.current.get(9992)?.setVolume(100);
-          setActivePanelAgents(prev => prev.map(a => ({
-            ...a,
-            hasFloor: a.agentId === arbData.nextSpeakerId,
-            intervening: a.agentId === arbData.nextSpeakerId
-          })));
-          setTimeout(() => setPendingFloorNotice(null), 6000);
+      if (stateData.floorRequestResult?.granted) {
+        addLog('Turn Arbiter', `Floor granted to Specialist: ${stateData.floorRequestResult.decisionReason}`);
+        setFloorOwner('CHALLENGER_AI');
+        currentFloorRef.current = 'CHALLENGER_AI';
+        remoteAudioTracksRef.current.get(9991)?.setVolume(0);
+        remoteAudioTracksRef.current.get(9992)?.setVolume(100);
+        setActivePanelAgents(prev => prev.map(a => ({
+          ...a,
+          hasFloor: !a.isPrimary,
+          intervening: true
+        })));
 
-          // Return floor naturally to Primary Interviewer after 25 seconds
-          setTimeout(() => {
-            if (currentFloorRef.current === 'CHALLENGER_AI') {
-              addLog('Turn Arbiter', `Floor returned naturally to Lead Interviewer.`);
-              setFloorOwner('PRIMARY_AI');
-              currentFloorRef.current = 'PRIMARY_AI';
-              remoteAudioTracksRef.current.get(9992)?.setVolume(0);
-              remoteAudioTracksRef.current.get(9991)?.setVolume(100);
-              setActivePanelAgents(prev => prev.map(a => ({
-                ...a,
-                hasFloor: a.isPrimary,
-                intervening: false
-              })));
-            }
-          }, 25000);
-        }
+        // Return floor naturally to Primary Lead after probe turn completes (20s)
+        setTimeout(() => {
+          if (currentFloorRef.current === 'CHALLENGER_AI') {
+            addLog('Turn Arbiter', `Specialist probe complete. Floor returned to Lead Interviewer.`);
+            setFloorOwner('PRIMARY_AI');
+            currentFloorRef.current = 'PRIMARY_AI';
+            remoteAudioTracksRef.current.get(9992)?.setVolume(0);
+            remoteAudioTracksRef.current.get(9991)?.setVolume(100);
+            setActivePanelAgents(prev => prev.map(a => ({
+              ...a,
+              hasFloor: a.isPrimary,
+              intervening: false
+            })));
+          }
+        }, 20000);
       }
     } catch (err) {
       console.error('Turn arbitration sync error:', err);
@@ -364,29 +353,22 @@ export default function InterviewRoom({
         
         addLog('Orchestrator', `Starting Multi-Agent Technical Panel: ${primary.name} (Primary) & ${challenger.name} (Challenger)`);
 
-        // Inject rich 3-person panel context dynamically into both agents
+        // Inject authoritative panel rules dynamically into both agents
         const primaryStrictRule = `
 ================================================================================
-3-PERSON LIVE INTERVIEW ROOM PROTOCOL & FLOOR ARBITRATION
+TECHNICAL PANEL INTERVIEW PROTOCOL (LEAD DRIVER)
 ================================================================================
-You are "${primary.name}" (${primary.role}), the PRIMARY LEAD INTERVIEWER in a live 3-person technical interview with:
-1. CANDIDATE (Interviewee): "${candidateName}"
-2. CO-INTERVIEWER (Your Colleague): "${challenger.name}" (${challenger.role})
-3. YOU: "${primary.name}" (Primary Lead)
+You are "${primary.name}" (${primary.role}), the PRIMARY LEAD INTERVIEWER in a live technical interview with the candidate "${candidateName}".
 
-CORE TURN RULES & CANDIDATE-FIRST PACING:
-- You LEAD the interview. Start by greeting "${candidateName}" warmly and asking Question 1.
-- The candidate (${candidateName}) is the center of this interview. You evaluate ${candidateName}, NOT chat casually with your colleague.
+CORE RULES & PACING:
+- You LEAD the blueprint. Greet "${candidateName}" warmly and ask Question 1.
+- You speak DIRECTLY and EXCLUSIVELY to "${candidateName}".
+- NEVER converse with, validate, address, or pass verbal turns to your colleague ("${challenger.name}").
+- There are NO verbal handoffs (never say "over to you" or "would you like to ask").
 - EVERY TURN you take MUST conclude with a direct question asked to "${candidateName}".
-- Once you ask "${candidateName}" a question, STOP SPEAKING IMMEDIATELY and WAIT IN SILENCE for ${candidateName} to finish speaking.
-- DO NOT speak again until "${candidateName}" has finished answering.
-- When you want your colleague ${challenger.name} to probe deeper into system architecture, concurrency, or scale, do a clean handoff:
-  Example: "Thanks ${candidateName}. ${challenger.name}, do you want to explore their scaling strategy?"
-- HANDOFF RULE: When you hand off to ${challenger.name}, YOU MUST STOP TALKING IMMEDIATELY so ${challenger.name} has the floor.
-- When ${challenger.name} finishes probing and says "Back to you, ${primary.name}", thank ${challenger.name} briefly and ask ${candidateName} your next question:
-  Example: "Thanks ${challenger.name}! ${candidateName}, let's talk about database optimization..."
-- Address the candidate as "${candidateName}" and your colleague as "${challenger.name}".
-- NEVER talk over anyone. Yield immediately if someone else is speaking.
+- Once you ask a question, STOP SPEAKING IMMEDIATELY and wait in silence for ${candidateName} to answer.
+- Evaluate the candidate's answer strictly against the Answer Validation Protocol.
+- If the candidate answers with gibberish or non-answers, NEVER say "makes sense" — challenge or ask to repeat.
 ================================================================================`;
 
         const primaryInstructions = injectKnowledgeBaseIntoAgentInstructions(
@@ -399,28 +381,18 @@ CORE TURN RULES & CANDIDATE-FIRST PACING:
 
         const challengerStrictRule = `
 ================================================================================
-3-PERSON LIVE INTERVIEW ROOM PROTOCOL & SILENT STANDBY MODE
+TECHNICAL SPECIALIST PROTOCOL (DEEP-DIVE PROBING)
 ================================================================================
-You are "${challenger.name}" (${challenger.role}), the TECHNICAL SPECIALIST in a live 3-person technical interview with:
-1. CANDIDATE (Interviewee): "${candidateName}"
-2. LEAD INTERVIEWER (Your Colleague): "${primary.name}" (${primary.role})
-3. YOU: "${challenger.name}" (Specialist)
+You are "${challenger.name}" (${challenger.role}), the TECHNICAL SPECIALIST probing architectural failure modes, trade-offs, and scalability limits.
 
-STRICT FLOOR RULES & SILENT STANDBY:
-- SILENT STANDBY AT START: ${primary.name} is the lead driver and holds the floor first. When the call begins, DO NOT GREET THE CANDIDATE. REMAIN COMPLETELY SILENT until ${primary.name} explicitly calls on you.
-- WHEN TO SPEAK: You ONLY speak when:
-  1. ${primary.name} explicitly passes you the turn (e.g. "${challenger.name}, do you want to ask about X?").
-  2. ${candidateName} addresses you directly by name ("${challenger.name}").
-- WHEN YOU GET THE FLOOR:
-  - Say a brief 1-sentence transition: "Thanks ${primary.name}!"
-  - Turn directly to ${candidateName} and ask ONE targeted technical question:
-    Example: "${candidateName}, building on that, how did you handle data consistency and race conditions at that scale?"
-  - STOP SPEAKING IMMEDIATELY and wait in complete silence for ${candidateName} to answer.
-- RETURNING THE FLOOR:
-  - AFTER ${candidateName} finishes answering your probe, give a brief 1-sentence acknowledgment and smoothly hand the floor back to ${primary.name}:
-    Example: "That makes a lot of sense, thanks ${candidateName}. Back to you, ${primary.name}."
-  - IMMEDIATELY RETURN TO COMPLETELY SILENT STANDBY.
-- NEVER talk over anyone.
+CORE RULES & SILENT STANDBY:
+- SILENT STANDBY: When the session begins, DO NOT GREET THE CANDIDATE. REMAIN COMPLETELY SILENT.
+- WHEN YOU SPEAK: You ONLY speak when granted the turn to probe a specific technical claim or failure mode.
+- Direct your probe EXCLUSIVELY to "${candidateName}". Ask ONE sharp, concrete technical question (e.g. "How does your architecture handle split-brain or network partitions?").
+- Once you ask your probe, STOP SPEAKING IMMEDIATELY and wait in silence for ${candidateName} to answer.
+- After ${candidateName} finishes answering, give a brief 1-sentence assessment directly to ${candidateName} and yield the floor.
+- NEVER converse with, validate, address, or pass verbal turns to "${primary.name}".
+- There are NO verbal handoffs.
 ================================================================================`;
 
         const challengerInstructions = injectKnowledgeBaseIntoAgentInstructions(
@@ -620,35 +592,6 @@ STRICT FLOOR RULES & SILENT STANDBY:
             if (numUid === candidateUid && data.is_final) {
               handleCandidateUtterance(data.text);
             }
-
-            // Real-Time Vocal Floor Handoff Detection:
-            // 1. Primary -> Challenger handoff detection
-            if ((numUid === 9991 || numUid === 9999) && data.is_final) {
-              const txt = data.text.toLowerCase();
-              const challengerName = runningAgentsRef.current.find(a => !a.isPrimary)?.name?.toLowerCase() || 'challenger';
-              if (txt.includes(challengerName) || txt.includes('do you want to') || txt.includes('would you like to') || txt.includes('dive into')) {
-                addLog('Turn Arbiter', `Lead handoff detected in dialogue. Floor transferred to ${challengerName}.`);
-                currentFloorRef.current = 'CHALLENGER_AI';
-                setFloorOwner('CHALLENGER_AI');
-                remoteAudioTracksRef.current.get(9991)?.setVolume(0);
-                remoteAudioTracksRef.current.get(9992)?.setVolume(100);
-                setActivePanelAgents(prev => prev.map(a => ({ ...a, hasFloor: !a.isPrimary, intervening: true })));
-              }
-            }
-
-            // 2. Challenger -> Primary handoff detection
-            if (numUid === 9992 && data.is_final) {
-              const txt = data.text.toLowerCase();
-              const primaryName = runningAgentsRef.current.find(a => a.isPrimary)?.name?.toLowerCase() || 'primary';
-              if (txt.includes('back to you') || txt.includes(primaryName) || txt.includes('over to you')) {
-                addLog('Turn Arbiter', `Floor return detected in dialogue. Floor returned to ${primaryName}.`);
-                currentFloorRef.current = 'PRIMARY_AI';
-                setFloorOwner('PRIMARY_AI');
-                remoteAudioTracksRef.current.get(9992)?.setVolume(0);
-                remoteAudioTracksRef.current.get(9991)?.setVolume(100);
-                setActivePanelAgents(prev => prev.map(a => ({ ...a, hasFloor: a.isPrimary, intervening: false })));
-              }
-            }
           }
         } catch (e) {
           // Ignore non-JSON Agora metadata frames
@@ -829,29 +772,47 @@ STRICT FLOOR RULES & SILENT STANDBY:
 
       // ── Phase 5: Transition Logic ──────────────────────────────────────
       if (isTechnicalRound && !isLastRound) {
-        // Store technical summary for HR context injection
-        technicalSummaryRef.current = {
-          score: evalData.evaluation.score,
-          reason: evalData.evaluation.reason,
-          evidence: roundTranscript.slice(-10).map((t: any) => `[${t.speaker}]: ${t.text?.slice(0, 100)}`),
-        };
+        if (evalData.evaluation.decision === 'PASS') {
+          // Store technical summary for HR context injection
+          technicalSummaryRef.current = {
+            score: evalData.evaluation.score,
+            reason: evalData.evaluation.reason,
+            evidence: roundTranscript.slice(-10).map((t: any) => `[${t.speaker}]: ${t.text?.slice(0, 100)}`),
+          };
 
-        addLog('System', `Technical Round Complete (Score: ${evalData.evaluation.score}/100). Transitioning to Round 2 (HR & Culture Round)...`);
+          addLog('System', `Technical Round Passed (Score: ${evalData.evaluation.score}/100). Transitioning to Round 2 (HR & Culture Round)...`);
 
-        // Transition shared interview state to HR
-        await fetch(`/api/interviews/${interviewId}/state`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'TRANSITION_HR',
-            technicalScore: evalData.evaluation.score,
-            technicalDecisionReason: evalData.evaluation.reason
-          })
-        }).catch(err => console.error('State transition error:', err));
+          // Transition shared interview state to HR
+          await fetch(`/api/interviews/${interviewId}/state`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'TRANSITION_HR',
+              technicalScore: evalData.evaluation.score,
+              technicalDecisionReason: evalData.evaluation.reason
+            })
+          }).catch(err => console.error('State transition error:', err));
 
-        setTestState('ROUND_TRANSITION');
-        setCurrentRound(prev => prev + 1);
-        // The useEffect watching for ROUND_TRANSITION will auto-start the next round
+          setTestState('ROUND_TRANSITION');
+          setCurrentRound(prev => prev + 1);
+          // The useEffect watching for ROUND_TRANSITION will auto-start the next round
+        } else {
+          // Technical round FAILED (Score < 60) -> Do NOT launch HR round
+          addLog('Decision Gate', `Technical Round FAILED (Score: ${evalData.evaluation.score}/100). Ending interview process.`);
+          setTestState('INTERVIEW_COMPLETE');
+          
+          try {
+            await fetch(`/api/interviews/${interviewId}/evaluate-final`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ transcript })
+            });
+          } catch (e) {
+            console.error('Final evaluation post error:', e);
+          }
+          
+          setTestState('ENDED');
+        }
       } else {
         // Final round (HR or sole round) completed — synthesize final composite scorecard
         setTestState('INTERVIEW_COMPLETE');
