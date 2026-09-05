@@ -288,7 +288,7 @@ export interface Application {
   relevantExperience?: string;
   additionalInfo?: string;
   status: string;
-  decisionStage?: 'RESUME_SCREENING' | 'ROUND_1_TECHNICAL' | 'ROUND_2_SYSTEM_DESIGN' | 'ROUND_3_BEHAVIORAL' | 'FINAL_DECISION';
+  decisionStage?: 'RESUME_SCREENING' | 'ROUND_1_TECHNICAL' | 'ROUND_2_SYSTEM_DESIGN' | 'ROUND_3_BEHAVIORAL' | 'FINAL_DECISION' | 'PENDING_HIRING_DECISION';
   decisionReason?: string;
   recommendedAlternativeRoles?: string[];
   evaluationScore?: number;

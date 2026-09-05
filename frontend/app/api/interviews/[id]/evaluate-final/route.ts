@@ -253,31 +253,16 @@ Generate the JSON Scorecard.`;
     interview.status = 'COMPLETED';
     (interview as any).completedAt = new Date().toISOString();
 
-    // Update application pipeline record
+    // Update application pipeline record: AI generates evidence-based report for human hiring manager decision
     if (application) {
       const rec = scorecard.overall_recommendation || 'Hire';
-      const isReject = rec.toLowerCase().includes('no hire') || (scorecard.overallScore ?? 0) < 55;
       const score = scorecard.overallScore ?? (rec.includes('Strong') ? 92 : rec.includes('Hire') ? 85 : 40);
 
-      application.status = isReject ? 'REJECTED' : 'SELECTED';
+      application.status = 'UNDER_REVIEW';
       application.evaluationScore = score;
-      application.evaluationSummary = scorecard.overall_summary || scorecard.summary || 'Autonomous multi-agent technical and HR interview panel completed.';
-      application.decisionStage = 'FINAL_DECISION';
-      application.decisionReason = scorecard.overall_summary || 'Panel interview completed and scored.';
-
-      // Automatically dispatch final outcome email to candidate
-      if (candidate && job) {
-        try {
-          const { sendSelectionOfferEmail, sendRejectionEmail } = await import('@/lib/email');
-          if (isReject) {
-            await sendRejectionEmail(candidate, job, 'FINAL_PANEL_INTERVIEW', application.decisionReason);
-          } else {
-            await sendSelectionOfferEmail(candidate, job, score, application.evaluationSummary);
-          }
-        } catch (mailErr: any) {
-          console.warn('[evaluate-final] Failed to dispatch outcome email:', mailErr.message);
-        }
-      }
+      application.evaluationSummary = scorecard.overall_summary || scorecard.summary || 'Autonomous multi-agent technical and HR interview panel completed. Scorecard and evidence report generated for hiring manager review.';
+      application.decisionStage = 'PENDING_HIRING_DECISION';
+      application.decisionReason = `Interview panel completed with evaluation score ${score}/100. Scorecard synthesized for human hiring team review.`;
     }
 
     saveDb(db);
