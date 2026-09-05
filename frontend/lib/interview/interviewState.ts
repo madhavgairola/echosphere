@@ -1,4 +1,4 @@
-import { InterviewState, FloorRequest, ActivePanelAgent, InterviewerProfile } from '@/lib/db';
+import { InterviewState, FloorRequest, ActivePanelAgent, InterviewerProfile, CompetencyEvidence } from '@/lib/db';
 
 /**
  * Technical trigger keywords that prompt the Technical Lead / Challenger to intervene.
@@ -14,8 +14,56 @@ const SCALABILITY_TRIGGERS = [
   { pattern: /\b(rag|vector|embedding|cosine|faiss|chroma|pinecone)\b/i, reason: 'candidate_mentioned_rag_pipeline', probeType: 'vector_index_latency_and_drift' },
   { pattern: /\b(vllm|tensorrt|gpu|quantization|awq|fp8|speculative)\b/i, reason: 'candidate_mentioned_gpu_serving', probeType: 'gpu_memory_and_kv_cache' },
   { pattern: /\b(webrtc|turn|stun|sdp|ice|audio\s*track|real-time\s*voice)\b/i, reason: 'candidate_mentioned_webrtc_audio', probeType: 'packet_loss_and_jitter' },
-  { pattern: /\b(kubernetes|k8s|helm|autoscaling|hpa|ingress)\b/i, reason: 'candidate_mentioned_kubernetes', probeType: 'graceful_pod_termination' }
+  { pattern: /\b(kubernetes|k8s|helm|autoscaling|hpa|ingress)\b/i, reason: 'candidate_mentioned_kubernetes', probeType: 'graceful_pod_termination' },
+  { pattern: /\b(raft|paxos|consensus|quorum|leader\s*election|split-brain)\b/i, reason: 'candidate_mentioned_consensus', probeType: 'split_brain_and_network_partitions' }
 ];
+
+/**
+ * Classifies the technical quality and structure of a candidate utterance heuristically.
+ */
+export function classifyCandidateAnswer(utterance: string): {
+  classification: 'STRONG' | 'PARTIAL' | 'VAGUE' | 'INCORRECT' | 'IRRELEVANT' | 'GIBBERISH' | 'SILENCE';
+  qualityScore: number;
+  isGibberish: boolean;
+  verbatimQuote?: string;
+} {
+  const clean = utterance.trim();
+  if (!clean || clean.length < 5) {
+    return { classification: 'SILENCE', qualityScore: 0, isGibberish: false };
+  }
+
+  // Check for gibberish patterns: keyboard mashing, repeated characters, very high entropy of nonsense tokens
+  const words = clean.split(/\s+/).filter(Boolean);
+  const repeatedWords = words.filter((w, i) => words.indexOf(w) !== i && w.length > 3);
+  const repetitionRatio = words.length > 0 ? repeatedWords.length / words.length : 0;
+  const avgWordLength = words.reduce((acc, w) => acc + w.length, 0) / (words.length || 1);
+
+  // Common technical terms check
+  const techTermMatches = clean.match(/\b(api|async|await|buffer|cache|channel|cluster|concurrency|database|deadlock|distributed|event|goroutine|grpc|http|index|kafka|latency|lock|log|memory|message|microservice|mutex|network|node|optimize|packet|partition|pipeline|postgres|process|proto|pubsub|query|queue|raft|redis|replica|request|scale|server|service|socket|stream|sync|tcp|thread|throughput|timeout|transaction|vector|webrtc|websocket)\b/gi) || [];
+
+  if (words.length < 4 && techTermMatches.length === 0) {
+    if (/\b(yes|no|maybe|idk|sure|ok|okay|fine|stuff|thing|things)\b/i.test(clean)) {
+      return { classification: 'VAGUE', qualityScore: 20, isGibberish: false };
+    }
+  }
+
+  if (repetitionRatio > 0.6 || avgWordLength > 18 || (words.length > 5 && techTermMatches.length === 0 && !/[a-zA-Z]{3,}/.test(clean))) {
+    return { classification: 'GIBBERISH', qualityScore: 5, isGibberish: true };
+  }
+
+  // Strong answer: long enough, contains concrete technical keywords and structured explanations
+  if (clean.length >= 60 && techTermMatches.length >= 2) {
+    const verbatimQuote = clean.slice(0, 160) + (clean.length > 160 ? '...' : '');
+    return { classification: 'STRONG', qualityScore: 85, isGibberish: false, verbatimQuote };
+  }
+
+  if (clean.length >= 30 && techTermMatches.length >= 1) {
+    const verbatimQuote = clean.slice(0, 120) + (clean.length > 120 ? '...' : '');
+    return { classification: 'PARTIAL', qualityScore: 65, isGibberish: false, verbatimQuote };
+  }
+
+  return { classification: 'VAGUE', qualityScore: 35, isGibberish: false };
+}
 
 /**
  * Initializes a shared interview state for a 2-agent technical panel.
@@ -56,6 +104,7 @@ export function createInitialInterviewState(
     questionsAsked: [],
     topicsCovered: [],
     evidenceCollected: [],
+    structuredEvidence: [],
     agentFloorRequests: [],
     roundProgress: 0,
     interviewStatus: 'IN_PROGRESS',
@@ -66,12 +115,12 @@ export function createInitialInterviewState(
 
 /**
  * Records a candidate utterance into the shared state.
- * Evaluates whether the Technical Lead / Challenger should request the floor.
+ * Evaluates answer quality and determines whether the Specialist should request the floor.
  */
 export function recordCandidateUtterance(
   state: InterviewState,
   utterance: string
-): { updatedState: InterviewState; newFloorRequest?: FloorRequest } {
+): { updatedState: InterviewState; newFloorRequest?: FloorRequest; qualityReport?: any } {
   const clean = utterance.trim();
   if (!clean) return { updatedState: state };
 
@@ -79,12 +128,29 @@ export function recordCandidateUtterance(
   updated.candidateAnswer = clean;
   updated.updatedAt = new Date().toISOString();
 
+  // Classify answer quality
+  const quality = classifyCandidateAnswer(clean);
+
+  // Record structured competency evidence
+  const evidenceRecord: CompetencyEvidence = {
+    id: `ev_${Math.random().toString(36).substring(2, 7)}`,
+    timestamp: Date.now(),
+    round: updated.currentRound,
+    speaker: 'Candidate',
+    questionAsked: updated.lastQuestion || 'Introductory / Technical Question',
+    candidateUtterance: clean,
+    classification: quality.classification,
+    verbatimQuote: quality.verbatimQuote,
+    qualityScore: quality.qualityScore,
+    topic: updated.currentTopic
+  };
+
+  if (!updated.structuredEvidence) updated.structuredEvidence = [];
+  updated.structuredEvidence.push(evidenceRecord);
+
   // Extract quick evidence snippet
-  if (clean.length > 50) {
-    const summarySnippet = clean.slice(0, 140) + (clean.length > 140 ? '...' : '');
-    if (!updated.evidenceCollected.includes(summarySnippet)) {
-      updated.evidenceCollected = [...updated.evidenceCollected, summarySnippet];
-    }
+  if (quality.verbatimQuote && !updated.evidenceCollected.includes(quality.verbatimQuote)) {
+    updated.evidenceCollected = [...updated.evidenceCollected, quality.verbatimQuote];
   }
 
   // Check if candidate explicitly addressed an agent by name
@@ -107,7 +173,7 @@ export function recordCandidateUtterance(
       timestamp: Date.now()
     };
     updated.agentFloorRequests = [...updated.agentFloorRequests, floorReq];
-    return { updatedState: updated, newFloorRequest: floorReq };
+    return { updatedState: updated, newFloorRequest: floorReq, qualityReport: quality };
   }
 
   // During technical round, evaluate if the Challenger agent should intervene
@@ -131,14 +197,14 @@ export function recordCandidateUtterance(
               timestamp: Date.now()
             };
             updated.agentFloorRequests = [...updated.agentFloorRequests, floorReq];
-            return { updatedState: updated, newFloorRequest: floorReq };
+            return { updatedState: updated, newFloorRequest: floorReq, qualityReport: quality };
           }
         }
       }
     }
   }
 
-  return { updatedState: updated };
+  return { updatedState: updated, qualityReport: quality };
 }
 
 /**
@@ -154,7 +220,6 @@ export function arbitrateNextTurn(state: InterviewState): {
 } {
   const updated = { ...state };
   const primary = updated.activeAgents.find(a => a.isPrimary && a.isActive);
-  const challenger = updated.activeAgents.find(a => !a.isPrimary && a.isActive);
 
   // If there are floor requests from the challenger, grant floor to challenger
   if (updated.agentFloorRequests.length > 0) {

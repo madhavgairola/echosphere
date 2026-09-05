@@ -1051,15 +1051,6 @@ STRICT FLOOR RULES & SILENT STANDBY:
                       {floorOwner === 'PRIMARY_AI' ? '🎙️ Speaking (Lead)' : '👂 Listening'}
                     </span>
                   </div>
-
-                  {floorOwner === 'CHALLENGER_AI' && (
-                    <button
-                      onClick={() => transferFloorToPrimary()}
-                      className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-300 text-[11px] font-mono font-bold rounded-lg transition-all"
-                    >
-                      ⚡ Return Floor to Lead
-                    </button>
-                  )}
                 </div>
 
                 {/* Challenger Interviewer Card */}
@@ -1100,15 +1091,6 @@ STRICT FLOOR RULES & SILENT STANDBY:
                           : '👂 Listening'}
                     </span>
                   </div>
-
-                  {floorOwner !== 'CHALLENGER_AI' && (
-                    <button
-                      onClick={() => transferFloorToChallenger('Manual Floor Request')}
-                      className="px-3 py-1 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 text-[11px] font-mono font-bold rounded-lg transition-all"
-                    >
-                      ⚡ Hand Floor to Specialist
-                    </button>
-                  )}
                 </div>
               </div>
             ) : (

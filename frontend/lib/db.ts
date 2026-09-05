@@ -326,6 +326,19 @@ export interface FloorRequest {
   timestamp: number;
 }
 
+export interface CompetencyEvidence {
+  id: string;
+  timestamp: number;
+  round: 'technical' | 'hr';
+  speaker: string;
+  questionAsked: string;
+  candidateUtterance: string;
+  classification: 'STRONG' | 'PARTIAL' | 'VAGUE' | 'INCORRECT' | 'IRRELEVANT' | 'GIBBERISH' | 'SILENCE';
+  verbatimQuote?: string;
+  qualityScore: number;
+  topic?: string;
+}
+
 export interface ActivePanelAgent {
   agentId: string;
   name: string;
@@ -348,6 +361,7 @@ export interface InterviewState {
   questionsAsked: string[];
   topicsCovered: string[];
   evidenceCollected: string[];
+  structuredEvidence?: CompetencyEvidence[];
   agentFloorRequests: FloorRequest[];
   roundProgress: number; // 0 to 100
   interviewStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'ROUND_COMPLETE' | 'PASSED' | 'FAILED' | 'COMPLETED';

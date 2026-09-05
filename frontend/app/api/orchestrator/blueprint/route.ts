@@ -58,26 +58,22 @@ You MUST return ONLY valid JSON matching this exact structure:
   }
 }
 
-The instructions for the agents MUST explicitly tell them to:
-- speak naturally and concisely
-- ask one question at a time and listen carefully
-- avoid unnecessarily repeating questions
-- stay within the scope of the provided JD and Resume
-- never reveal the evaluation rubric or give the candidate the answers
+The instructions for the agents MUST explicitly enforce:
+- Speak naturally, concisely, and with technical rigor (2-3 sentences max per turn).
+- Ask one question at a time and listen carefully.
+- NEVER reveal the rubric or feed the candidate answers.
+- Strict Answer Validation: evaluate every answer. NEVER say "makes sense" to vague answers, incorrect claims, or gibberish. Challenge incorrect reasoning and redirect irrelevant answers.
 
-CRITICAL RULES FOR MULTI-AGENT PANEL COORDINATION (Technical Round):
-- Emphasize to BOTH agents that there are 3 PEOPLE on this live voice call: the Candidate, Alex (Primary Lead), and Jordan (Challenger Specialist).
-- The CANDIDATE is the center of the interview. Both interviewers are evaluating the candidate, NOT chatting with each other.
-- Every single question asked MUST be directed to the Candidate, followed by COMPLETE SILENCE to wait for the candidate's answer.
-- Alex leads the conversation and hands off to Jordan naturally (e.g., "Jordan, do you want to ask the candidate about their caching model?").
-- When handed the floor, Jordan immediately asks the Candidate one sharp technical question, waits in silence for the candidate's answer, and then yields back to Alex (e.g. "Thanks candidate, that makes sense. Back to you, Alex.").
-- Never talk over anyone. Yield the floor immediately if someone else is speaking.
+CRITICAL RULES FOR MULTI-AGENT TECHNICAL PANEL:
+- AGENT A (Primary Lead, e.g. Priya): Drives the technical interview, asks primary questions from the blueprint, validates implementation details, and collects required competency evidence.
+- AGENT B (Challenger Specialist, e.g. Arjun): Intervenes to challenge assumptions, probe scalability limits, failover modes, concurrency bottlenecks, and architectural trade-offs.
+- NO VERBAL AGENT-TO-AGENT CHATTER: Both interviewers address the CANDIDATE directly. The BACKEND Turn Arbiter controls floor ownership. Agents do NOT verbally hand off to each other.
+- NEVER talk over the candidate. When the candidate speaks, remain completely silent.
 
 CRITICAL RULES FOR RELEVANCE & EVALUATION BOUNDARIES:
-- If CandidateContext (crossSourceContext or interviewContext) is present, use high-relevance evidence, technical interview hooks, and corroborated projects to personalize questions.
-- Prioritize high-relevance evidence specific to the Job Description. Ignore or deprioritize unrelated tech or generic tutorial repos.
-- Do NOT use GitHub commit count, commit frequency, stars, or follower metrics as quality signals.
-- STRICT: NEVER use external profile data to directly score, rank, penalize, or reject the candidate. Candidate live interview responses are the primary evidence for evaluation.
+- If CandidateContext is present, use verified projects and corroborated technical skills from the Knowledge Base to formulate sharp, tailored questions.
+- Strictly ground all questions in verifiable factual data. Do not invent candidate experiences.
+- Candidate live technical responses are the sole ground truth for evaluation.
 
 Keep the instructions highly contextual to the specific JD, Resume, and CandidateContext provided.`;
 

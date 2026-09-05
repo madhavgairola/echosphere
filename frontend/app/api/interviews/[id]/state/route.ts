@@ -67,9 +67,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     let result: any = { interviewState: interview.interviewState };
 
     if (action === 'CANDIDATE_UTTERANCE') {
-      const { updatedState, newFloorRequest } = recordCandidateUtterance(interview.interviewState, utterance || '');
+      const { updatedState, newFloorRequest, qualityReport } = recordCandidateUtterance(interview.interviewState, utterance || '');
       interview.interviewState = updatedState;
-      result = { interviewState: updatedState, newFloorRequest };
+      result = { interviewState: updatedState, newFloorRequest, qualityReport };
     } else if (action === 'ARBITRATE_TURN') {
       const arbiterResult = arbitrateNextTurn(interview.interviewState);
       interview.interviewState = arbiterResult.updatedState;

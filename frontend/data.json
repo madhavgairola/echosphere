@@ -1185,6 +1185,53 @@
           "timestamp": "2026-09-05T09:38:25.985Z"
         }
       }
+    },
+    {
+      "id": "demo-cand-test",
+      "name": "Alex Rivera",
+      "email": "alex.rivera@example.com",
+      "githubUrl": "https://github.com/alexrivera-eng",
+      "linkedinUrl": "https://linkedin.com/in/alex-rivera-distributed",
+      "candidateContext": {
+        "headline": "Staff Infrastructure Engineer — Distributed Systems & Event Streaming",
+        "about": "Specialized in high-throughput low-latency stream processing, Raft consensus protocols, and WebRTC streaming media backbones.",
+        "skills": [
+          "Distributed Systems",
+          "Kafka",
+          "Go",
+          "Node.js",
+          "PostgreSQL",
+          "Redis",
+          "WebRTC",
+          "Kubernetes"
+        ],
+        "experience": [
+          {
+            "title": "Senior Distributed Systems Engineer",
+            "company": "Vortex Cloud Inc.",
+            "duration": "2021 — Present (3.5 yrs)",
+            "description": "Architected real-time event streaming cluster handling 1.8M events/sec using Go, Apache Kafka, and RocksDB with p99 latency < 12ms."
+          },
+          {
+            "title": "Backend Infrastructure Engineer",
+            "company": "Nexus Scale Labs",
+            "duration": "2019 — 2021 (2 yrs)",
+            "description": "Implemented high-concurrency WebSocket gateways and distributed cache invalidation layers across multi-region Redis clusters."
+          }
+        ],
+        "projects": [
+          {
+            "title": "Chronos-Raft: Embedded High-Throughput Consensus Engine in Go",
+            "description": "A lock-free Go implementation of Raft consensus with vectorized batch log replication.",
+            "url": "https://github.com/alexrivera-eng/chronos-raft"
+          },
+          {
+            "title": "FlowMesh: Sub-10ms WebRTC Media Pipeline Ingestion",
+            "description": "Real-time media relay proxy with adaptive jitter buffers and acoustic frame synchronization.",
+            "url": "https://github.com/alexrivera-eng/flowmesh-webrtc"
+          }
+        ]
+      }
     }
   ],
   "applications": [
@@ -4418,6 +4465,57 @@
           "timestamp": "2026-09-05T09:38:25.985Z"
         }
       }
+    },
+    {
+      "id": "demo-app-test",
+      "jobId": "j1",
+      "candidateId": "demo-cand-test",
+      "resumeText": "Alex Rivera\nSenior Backend & Infrastructure Engineer\nEmail: alex.rivera@example.com | Phone: +1-555-0192\n\nPROFESSIONAL SUMMARY:\nSeasoned Distributed Systems Engineer with 5+ years building sub-50ms real-time event streaming engines, lock-free concurrency in Go, and multi-region data platforms.\n\nCORE SKILLS:\n• Distributed Systems Architecture, Raft Consensus, Event-Driven Topologies\n• Go (Golang), TypeScript/Node.js, C++\n• Apache Kafka, Redis Clusters, PostgreSQL Optimization\n• WebRTC, WebSockets, Low-Latency Real-Time Audio\n\nEXPERIENCE:\n• Vortex Cloud Inc. (2021 - Present): Senior Systems Engineer\n  - Built event pipeline processing 1.8M events/sec.\n  - Reduced p99 latency from 45ms to 11ms.\n• Nexus Scale Labs (2019 - 2021): Backend Engineer\n  - Scaled WebSocket connection pooling to 250,000 active nodes.",
+      "status": "SELECTED",
+      "decisionStage": "FINAL_DECISION",
+      "candidateContext": {
+        "headline": "Staff Infrastructure Engineer — Distributed Systems & Event Streaming",
+        "about": "Specialized in high-throughput low-latency stream processing, Raft consensus protocols, and WebRTC streaming media backbones.",
+        "skills": [
+          "Distributed Systems",
+          "Kafka",
+          "Go",
+          "Node.js",
+          "PostgreSQL",
+          "Redis",
+          "WebRTC",
+          "Kubernetes"
+        ],
+        "experience": [
+          {
+            "title": "Senior Distributed Systems Engineer",
+            "company": "Vortex Cloud Inc.",
+            "duration": "2021 — Present (3.5 yrs)",
+            "description": "Architected real-time event streaming cluster handling 1.8M events/sec using Go, Apache Kafka, and RocksDB with p99 latency < 12ms."
+          },
+          {
+            "title": "Backend Infrastructure Engineer",
+            "company": "Nexus Scale Labs",
+            "duration": "2019 — 2021 (2 yrs)",
+            "description": "Implemented high-concurrency WebSocket gateways and distributed cache invalidation layers across multi-region Redis clusters."
+          }
+        ],
+        "projects": [
+          {
+            "title": "Chronos-Raft: Embedded High-Throughput Consensus Engine in Go",
+            "description": "A lock-free Go implementation of Raft consensus with vectorized batch log replication.",
+            "url": "https://github.com/alexrivera-eng/chronos-raft"
+          },
+          {
+            "title": "FlowMesh: Sub-10ms WebRTC Media Pipeline Ingestion",
+            "description": "Real-time media relay proxy with adaptive jitter buffers and acoustic frame synchronization.",
+            "url": "https://github.com/alexrivera-eng/flowmesh-webrtc"
+          }
+        ]
+      },
+      "evaluationScore": 92,
+      "evaluationSummary": "Alex Rivera demonstrated exceptional domain expertise in high-concurrency event pipelines, Go performance tuning, and ultra-low-latency real-time backend architecture. Their proven background in scaling event processing to 1.8M events/sec and optimizing p99 latency down to 11ms aligns perfectly with Nexora Labs' core platform requirements.",
+      "decisionReason": "Alex Rivera demonstrated exceptional domain expertise in high-concurrency event pipelines, Go performance tuning, and ultra-low-latency real-time backend architecture. Their proven background in scaling event processing to 1.8M events/sec and optimizing p99 latency down to 11ms aligns perfectly with Nexora Labs' core platform requirements."
     }
   ],
   "interviews": [
@@ -4611,6 +4709,173 @@
         }
       ],
       "transcript": []
+    },
+    {
+      "id": "demo-interview-test",
+      "applicationId": "demo-app-test",
+      "scheduledAt": "2026-09-05T18:29:20.817Z",
+      "status": "COMPLETED",
+      "transcript": [],
+      "evaluations": [
+        {
+          "round": "Round 1: Technical Panel (Systems & Concurrency)",
+          "decision": "FAIL",
+          "score": 0,
+          "reason": "The candidate transcript is missing or empty, providing no evidence of technical competence or problem-solving abilities. Consequently, the candidate fails the evaluation by default."
+        },
+        {
+          "round": "Round 2: HR, Culture & Engineering Leadership",
+          "decision": "FAIL",
+          "score": 0,
+          "reason": "The transcript is empty, indicating the candidate did not answer any questions or participate in the interview. As a result, they fail to demonstrate any of the required competencies outlined in the rubric."
+        }
+      ],
+      "suspiciousEvents": [
+        {
+          "timestamp": "2026-09-05T18:32:12.095Z",
+          "type": "TAB_SWITCH",
+          "details": "Candidate switched tabs or minimized interview window",
+          "severity": "HIGH",
+          "score_impact": -15
+        },
+        {
+          "timestamp": "2026-09-05T18:32:12.150Z",
+          "type": "TAB_SWITCH",
+          "details": "Candidate switched tabs or minimized interview window",
+          "severity": "HIGH",
+          "score_impact": -15
+        },
+        {
+          "timestamp": "2026-09-05T18:32:12.207Z",
+          "type": "FOCUS_REGAINED",
+          "details": "Candidate returned to interview tab after 1.3s",
+          "severity": "INFO",
+          "score_impact": 0
+        }
+      ],
+      "interviewState": {
+        "interviewId": "demo-interview-test",
+        "currentRound": "hr",
+        "currentSpeaker": "hr_01",
+        "conversationSummary": "Technical panel interview initialized.\n--- TECHNICAL ROUND COMPLETED ---\nTechnical Round Passed (Score: 85/100). Highlights: . Panel Notes: Demonstrated solid technical problem solving in Round 1.",
+        "questionsAsked": [],
+        "topicsCovered": [],
+        "evidenceCollected": [],
+        "agentFloorRequests": [],
+        "roundProgress": 0,
+        "interviewStatus": "IN_PROGRESS",
+        "activeAgents": [
+          {
+            "agentId": "hr_01",
+            "name": "Tara Sharma",
+            "role": "Head of People & Culture",
+            "voice": "Aoede",
+            "color": "#EA580C",
+            "isPrimary": true,
+            "isActive": true,
+            "hasFloor": true
+          }
+        ],
+        "updatedAt": "2026-09-05T18:31:39.807Z"
+      },
+      "proctoringReport": {
+        "integrity_score": 96,
+        "confidence_score": 93,
+        "screen_attention_score": 96,
+        "gaze_stability_score": 95,
+        "head_attention_score": 95,
+        "hand_activity_score": 95,
+        "speech_confidence_score": 90,
+        "face_presence_score": 99,
+        "behavioral_calmness_score": 94,
+        "behavioral_consistency_score": 94,
+        "compound_penalty": 0,
+        "assessment": "LOW SUSPICION",
+        "assessment_desc": "Low behavioral anomaly level. Candidate demonstrated consistent screen attention and organic responses.",
+        "badge_color": "green",
+        "weights": {
+          "eye_gaze": 0.3,
+          "face_presence": 0.15,
+          "multiple_person": 0.2,
+          "head_orientation": 0.1,
+          "hand_activity": 0.1,
+          "speech_hesitation": 0.1,
+          "consistency": 0.05
+        },
+        "observations": {
+          "positive": [
+            "Single face confirmed; no unauthorized secondary person detected.",
+            "Speech delivery was fluent with consistent single vocal baseline.",
+            "Candidate remained clearly visible throughout the recorded duration.",
+            "Mostly stable screen gaze with natural cognitive saccades.",
+            "Head orientation remained consistently centered toward screen.",
+            "Hand activity was normal with natural conversational gestures."
+          ],
+          "cautions": []
+        },
+        "components": {
+          "eye_gaze_contrib": 28.7,
+          "presence_contrib": 14.9,
+          "multi_person_contrib": 20,
+          "head_contrib": 9.5,
+          "hand_contrib": 9.5,
+          "speech_contrib": 9,
+          "consistency_contrib": 4.7
+        },
+        "lastUpdated": "2026-09-05T18:32:12.208Z",
+        "totalEventsRecorded": 3
+      },
+      "scorecard": {
+        "overall_recommendation": "Strong Hire",
+        "overallScore": 92,
+        "overall_summary": "Alex Rivera demonstrated exceptional domain expertise in high-concurrency event pipelines, Go performance tuning, and ultra-low-latency real-time backend architecture. Their proven background in scaling event processing to 1.8M events/sec and optimizing p99 latency down to 11ms aligns perfectly with Nexora Labs' core platform requirements.",
+        "strengths": [
+          "Proven track record building ultra-low-latency distributed event streaming engines (1.8M events/sec, 11ms p99 latency).",
+          "Deep mastery of Go concurrency models, lock-free channels, and WebSocket socket pooling.",
+          "Strong technical alignment with Nexora's stack including Kafka, Redis, PostgreSQL, Go, and TypeScript."
+        ],
+        "weaknesses": [
+          "Could provide more explicit details regarding Kubernetes operator deployment models and GitOps workflows.",
+          "Limited detail on direct cross-functional alignment with ML/AI research teams for streaming payload contracts."
+        ],
+        "rubric_evaluations": [
+          {
+            "pillar": "Technical Depth & Concurrency",
+            "score": 5,
+            "feedback": "Exhibits exceptional mastery over Go concurrency patterns, memory barrier synchronization, and low-latency runtime optimization.",
+            "evidence": [
+              "Demonstrated hands-on experience with lock-free concurrency in Go.",
+              "Scaled active WebSocket connection pooling to 250,000 concurrent nodes at Nexus Scale Labs."
+            ]
+          },
+          {
+            "pillar": "Distributed Systems Architecture",
+            "score": 5,
+            "feedback": "Deep knowledge of consensus algorithms, event-driven topologies, fault tolerance, and multi-region platform design.",
+            "evidence": [
+              "Architected event processing pipelines scaling up to 1.8M events/sec at Vortex Cloud Inc.",
+              "Solid expertise in Kafka, Redis Clusters, and Raft consensus implementations."
+            ]
+          },
+          {
+            "pillar": "Problem Decomposition & Rigor",
+            "score": 4,
+            "feedback": "Highly quantitative approach to system bottlenecks, latency profiling, and edge-case failure mode resolution.",
+            "evidence": [
+              "Successfully reduced overall system p99 latency from 45ms to 11ms through systematic bottlenecks identification."
+            ]
+          },
+          {
+            "pillar": "Communication & Ownership Mindset",
+            "score": 4,
+            "feedback": "Articulate and structured communicator with clear ownership of mission-critical systems and production stability.",
+            "evidence": [
+              "Clearly articulated performance engineering trade-offs and backend architectural choices."
+            ]
+          }
+        ]
+      },
+      "completedAt": "2026-09-05T18:32:51.425Z"
     }
   ],
   "blueprints": [
@@ -4638,6 +4903,11 @@
       "id": "bp_yvp631s",
       "interviewId": "int_c3i592h",
       "blueprintJson": "{\n  \"interview_rounds\": [\n    {\n      \"round_name\": \"Technical Architecture & Concurrency\",\n      \"round_type\": \"technical\",\n      \"purpose\": \"Evaluate Madhav Gairola's capabilities in core engineering, concurrency, and real-world system architecture for Product Designer — Developer Systems & Experience.\",\n      \"interviewers\": [\n        {\n          \"interviewer_id\": \"eng_fs_01\",\n          \"name\": \"Priya Nair\",\n          \"role\": \"Senior Full Stack Engineer\",\n          \"voice\": \"Aoede\",\n          \"color\": \"#3B82F6\",\n          \"is_primary\": true,\n          \"agent_uid\": 9991,\n          \"instructions\": \"Speak naturally and concisely with Madhav Gairola. Explore their codecraft and system design depth in 'ExpensWise' and 'syn-2'.\",\n          \"greeting_message\": \"Hello Madhav Gairola, welcome! I'm Priya Nair, Senior Full Stack Engineer, and joining me is Arjun Malhotra. To kick things off, could you briefly introduce yourself and walk us through a recent project you built?\"\n        },\n        {\n          \"interviewer_id\": \"eng_fs_02\",\n          \"name\": \"Arjun Malhotra\",\n          \"role\": \"Staff Software Engineer / Technical Lead\",\n          \"voice\": \"Charon\",\n          \"color\": \"#8B5CF6\",\n          \"is_primary\": false,\n          \"agent_uid\": 9992,\n          \"instructions\": \"You are Arjun Malhotra, Staff Software Engineer / Technical Lead. Challenge architectural trade-offs, probe scalability bottlenecks, evaluate latency budgets, and ask about edge cases and failure modes.\",\n          \"greeting_message\": \"Hi Madhav Gairola, I'm Arjun Malhotra, Staff Software Engineer / Technical Lead. I'll be focusing on system design trade-offs, scalability boundaries, and failure modes with you today.\"\n        }\n      ],\n      \"interviewer\": {\n        \"name\": \"Priya Nair\",\n        \"role\": \"Senior Full Stack Engineer\",\n        \"instructions\": \"Speak naturally and concisely with Madhav Gairola. Explore their codecraft and system design depth in 'ExpensWise' and 'syn-2'.\",\n        \"greeting_message\": \"Hello Madhav Gairola, welcome! I'm Priya Nair, Senior Full Stack Engineer. To kick things off, could you introduce yourself and tell us about your recent work?\"\n      },\n      \"topics\": [\n        \"Core Architecture\",\n        \"Data Structures\",\n        \"System Scale\",\n        \"Engineering Trade-offs\"\n      ]\n    },\n    {\n      \"round_name\": \"Engineering Leadership & Culture\",\n      \"round_type\": \"hr\",\n      \"purpose\": \"Evaluate Madhav Gairola's collaboration, ownership, and technical communication\",\n      \"interviewers\": [\n        {\n          \"interviewer_id\": \"hr_01\",\n          \"name\": \"Tara Sharma\",\n          \"role\": \"Head of People & Culture\",\n          \"voice\": \"Aoede\",\n          \"color\": \"#EA580C\",\n          \"is_primary\": true,\n          \"agent_uid\": 9993,\n          \"instructions\": \"Evaluate communication, ownership, and engineering culture.\",\n          \"greeting_message\": \"Hi Madhav Gairola, great to meet you! I'm Tara Sharma, Head of People & Culture. Today we will discuss team collaboration, problem solving, and technical ownership.\"\n        }\n      ],\n      \"interviewer\": {\n        \"name\": \"Tara Sharma\",\n        \"role\": \"Head of People & Culture\",\n        \"instructions\": \"Evaluate communication, ownership, and engineering culture.\",\n        \"greeting_message\": \"Hi Madhav Gairola, great to meet you! I'm Tara Sharma, Head of People & Culture.\"\n      },\n      \"topics\": [\n        \"Ownership\",\n        \"Collaboration\",\n        \"Conflict Resolution\"\n      ]\n    }\n  ],\n  \"rubric\": {\n    \"Technical Depth\": \"Evaluates codecraft and architecture\",\n    \"System Scale\": \"Evaluates distributed systems concepts\",\n    \"Communication\": \"Evaluates clarity and structured thought\"\n  }\n}"
+    },
+    {
+      "id": "demo-blueprint-test",
+      "interviewId": "demo-interview-test",
+      "blueprintJson": "{\n  \"interview_rounds\": [\n    {\n      \"round_name\": \"Round 1: Technical Panel (Systems & Concurrency)\",\n      \"round_type\": \"technical\",\n      \"purpose\": \"Evaluate core distributed systems design, lock-free concurrency in Go, Kafka partition throughput, and Raft consensus.\",\n      \"interviewers\": [\n        {\n          \"name\": \"Priya Nair\",\n          \"role\": \"Principal Infrastructure Lead\",\n          \"voice\": \"Aoede\",\n          \"color\": \"#3B82F6\",\n          \"is_primary\": true,\n          \"agent_uid\": 9991,\n          \"instructions\": \"You are Priya Nair, Principal Infrastructure Lead at Nexora Labs. You are interviewing Alex Rivera for the Senior Backend Engineer role.\\nThere are 3 people on this call: Candidate (Alex), you (Priya - Primary Lead), and Arjun Malhotra (Staff Distributed Systems Prober).\\nFocus your questions on distributed concurrency, high-throughput event streaming, and Kafka partitions.\\nDirect all questions to Alex. When you want Arjun to probe, hand off smoothly: \\\"Arjun, would you like to probe Alex on their Raft consensus implementation?\\\"\\nAlways wait patiently for Alex's response.\",\n          \"greeting_message\": \"Hi Alex, welcome to Nexora Labs. I'm Priya, leading our Core Infrastructure team, and I'm joined by Arjun. We're excited to dive into your background in distributed systems and real-time streaming architectures. To get started, could you walk us through the design of your Chronos-Raft engine and how you handled batch replication?\"\n        },\n        {\n          \"name\": \"Arjun Malhotra\",\n          \"role\": \"Staff Distributed Systems Specialist\",\n          \"voice\": \"Charon\",\n          \"color\": \"#8B5CF6\",\n          \"is_primary\": false,\n          \"agent_uid\": 9992,\n          \"instructions\": \"You are Arjun Malhotra, Staff Distributed Systems Specialist at Nexora Labs.\\nYou are the technical challenger on this panel with Priya Nair (Lead) and Alex Rivera (Candidate).\\nWhen Priya hands the floor to you, ask a deep, sharp technical question about fault tolerance, split-brain scenarios, or Kafka partition rebalancing.\\nAfter the candidate answers, hand the floor back to Priya: \\\"Thanks Alex, that clears up the consensus guarantee. Back to you, Priya.\\\"\\nNever talk over Priya or the candidate.\",\n          \"greeting_message\": \"Hi Alex, great to meet you. Looking forward to discussing the concurrency and failover mechanics.\"\n        }\n      ],\n      \"topics\": [\n        \"Raft Consensus & Split-Brain Prevention\",\n        \"Kafka Partitioning & Backpressure Handling\",\n        \"Lock-Free Concurrency in Go\",\n        \"Zero-Downtime Cache Invalidation\"\n      ]\n    },\n    {\n      \"round_name\": \"Round 2: HR, Culture & Engineering Leadership\",\n      \"round_type\": \"hr\",\n      \"purpose\": \"Evaluate collaborative problem solving, incident retrospective ownership, technical mentorship, and cross-functional communication.\",\n      \"interviewers\": [\n        {\n          \"name\": \"Sarah Jenkins\",\n          \"role\": \"VP of Engineering Culture & People\",\n          \"voice\": \"Puck\",\n          \"color\": \"#F59E0B\",\n          \"is_primary\": true,\n          \"agent_uid\": 9993,\n          \"instructions\": \"You are Sarah Jenkins, VP of Engineering Culture & People at Nexora Labs.\\nYou are conducting the second round of Alex Rivera's interview, focusing on engineering ownership, incident retrospectives, and cross-functional collaboration.\\nAsk one thoughtful question at a time and listen attentively to Alex's answers.\",\n          \"greeting_message\": \"Hello Alex, wonderful to meet you! Priya and Arjun shared great notes from the technical round. In this section, I'd love to understand more about your leadership approach, how you navigate high-severity production incidents, and how you mentor engineers on your team.\"\n        }\n      ],\n      \"topics\": [\n        \"Incident Ownership & Blameless Post-Mortems\",\n        \"Technical Mentorship & Code Review Standards\",\n        \"Cross-Functional Product Collaboration\",\n        \"Working Under High-SLA Production Constraints\"\n      ]\n    }\n  ],\n  \"rubric\": {\n    \"Technical Depth & Concurrency\": \"Demonstrates mastery of Go concurrency, memory barriers, lock-free channels, and low-level thread synchronization.\",\n    \"Distributed Systems Architecture\": \"Understands partition tolerance, Raft consensus guarantees, backpressure, and caching trade-offs.\",\n    \"Problem Decomposition & Rigor\": \"Structured reasoning, quantitative throughput estimation, and awareness of edge-case failure modes.\",\n    \"Communication & Ownership Mindset\": \"Articulate, structured communication, proactive ownership of production outages, and blameless retrospectives.\"\n  }\n}"
     }
   ],
   "emails": [

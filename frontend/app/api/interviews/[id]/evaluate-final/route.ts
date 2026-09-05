@@ -2,6 +2,49 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb, saveDb } from '@/lib/db';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+/**
+ * Heuristically analyzes candidate responses from full multi-round transcript.
+ */
+function analyzeCandidateFullTranscript(transcript: any[]) {
+  const candidateUtterances = transcript.filter((t: any) => {
+    const sp = (t.speaker || '').toLowerCase();
+    return !sp.includes('priya') && !sp.includes('arjun') && !sp.includes('sarah') && !sp.includes('interviewer') && !sp.includes('ai');
+  });
+
+  const totalCandidateWords = candidateUtterances.reduce((acc, t) => acc + (t.text || '').split(/\s+/).filter(Boolean).length, 0);
+  
+  const techPattern = /\b(api|async|await|batch|buffer|cache|channel|cluster|concurrency|database|deadlock|distributed|event|goroutine|grpc|http|index|kafka|latency|lock|log|memory|message|microservice|mutex|network|node|optimize|packet|partition|pipeline|postgres|process|proto|pubsub|query|queue|raft|redis|replica|request|scale|server|service|socket|stream|sync|tcp|thread|throughput|timeout|transaction|vector|webrtc|websocket)\b/gi;
+  
+  const verbatimQuotes: string[] = [];
+  let substantiveCount = 0;
+  let gibberishCount = 0;
+
+  for (const u of candidateUtterances) {
+    const txt = (u.text || '').trim();
+    const words = txt.split(/\s+/).filter(Boolean);
+    const techMatches = txt.match(techPattern) || [];
+
+    if (words.length >= 8 && techMatches.length >= 1) {
+      substantiveCount++;
+      const quote = txt.slice(0, 140) + (txt.length > 140 ? '...' : '');
+      if (!verbatimQuotes.includes(quote)) {
+        verbatimQuotes.push(quote);
+      }
+    } else if (words.length > 3 && techMatches.length === 0 && !/[a-zA-Z]{4,}/.test(txt)) {
+      gibberishCount++;
+    }
+  }
+
+  return {
+    candidateUtteranceCount: candidateUtterances.length,
+    totalCandidateWords,
+    substantiveCount,
+    gibberishCount,
+    verbatimQuotes,
+    hasSubstantialEvidence: substantiveCount >= 3 || (totalCandidateWords >= 60 && substantiveCount >= 2)
+  };
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const resolvedParams = await params;
@@ -52,42 +95,80 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       } catch (e) {}
     }
 
+    const stats = analyzeCandidateFullTranscript(transcript);
     let scorecard: any = null;
 
-    // Try Gemini evaluation first
-    try {
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-      const systemInstruction = `You are the Lead Hiring Partner and Senior Evaluator at Nexora Labs.
-Analyze the complete multi-round interview transcript (Technical Panel + HR Round) and evaluate candidate performance against the Job Description and Rubric.
+    // Hard Guardrail: If candidate gave gibberish, non-answers, or empty responses (< 2 substantive technical answers)
+    if (!stats.hasSubstantialEvidence || stats.totalCandidateWords < 25) {
+      scorecard = {
+        overall_recommendation: "No Hire",
+        overallScore: Math.min(35, Math.max(15, stats.totalCandidateWords)),
+        overall_summary: `Candidate provided insufficient demonstrable technical evidence during the interview panel for ${job?.title || 'the role'}. Responses lacked concrete architectural depth, implementation mechanics, and clear technical reasoning.`,
+        strengths: stats.totalCandidateWords > 10 ? ["Attended the interview session"] : [],
+        weaknesses: [
+          "Lacked demonstrable technical depth in core systems and concurrency requirements",
+          "Provided vague, unintelligible, or non-substantive answers when challenged on architectural trade-offs",
+          "Did not substantiate resume claims with concrete implementation details"
+        ],
+        rubric_evaluations: [
+          {
+            pillar: "Technical Depth & Codecraft",
+            score: 1,
+            feedback: "Insufficient evidence of technical competence or architectural reasoning.",
+            evidence: []
+          },
+          {
+            pillar: "Behavioral & Communication",
+            score: 2,
+            feedback: "Responses were non-substantive or evasive.",
+            evidence: []
+          }
+        ]
+      };
+    } else {
+      // Try Gemini evaluation
+      try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+        const systemInstruction = `You are the Lead Hiring Partner and Senior Evaluator at Nexora Labs.
+Analyze the complete multi-round interview transcript (Technical Panel + HR Round) and evaluate candidate performance against the Job Description and Rubric with uncompromising technical rigor.
+
+CRITICAL EVALUATION RULES:
+1. EVIDENCE GROUNDING: You MUST evaluate ONLY what the candidate actually said in the transcript. Do NOT assume, extrapolate, or hallucinate skills.
+2. SCORE CALIBRATION & GUARDRAILS:
+   - Strong Hire (88-100): Candidate demonstrated mastery, gave precise quantitative mechanics, and answered deep-dive probes with clarity.
+   - Hire (75-87): Solid technical competencies, structured communication, minor gaps in edge-case optimization.
+   - Leaning Hire / Leaning No Hire (50-74): Inconsistent technical depth or vague answers on key topics.
+   - No Hire (< 50): Provided gibberish, non-answers, or failed core technical questions.
+3. EVIDENCE CITATION: Every positive rubric evaluation MUST cite verbatim quotes from the candidate from the transcript.
 
 You MUST return ONLY valid JSON matching this exact structure:
 {
   "overall_recommendation": "Strong Hire" | "Hire" | "Leaning Hire" | "Leaning No Hire" | "No Hire",
-  "overallScore": 88,
+  "overallScore": <number 0-100>,
   "overall_summary": "A concise 2-3 sentence executive assessment of the candidate's performance across both rounds.",
-  "strengths": ["Demonstrated deep understanding of system architecture and concurrency.", "Clear and structured communication."],
-  "weaknesses": ["Could provide more concrete numbers regarding latency trade-offs."],
+  "strengths": ["<Specific demonstrated technical strength with evidence>"],
+  "weaknesses": ["<Specific area for improvement or trade-off missed>"],
   "rubric_evaluations": [
     {
       "pillar": "Technical Depth & Codecraft",
-      "score": 4,
-      "feedback": "Strong command of fundamentals and practical design trade-offs.",
-      "evidence": ["Candidate clearly explained their previous project scaling approach."]
+      "score": <1-5>,
+      "feedback": "<Concrete feedback based on transcript>",
+      "evidence": ["<Verbatim candidate quote>"]
     },
     {
       "pillar": "Behavioral & Culture Alignment",
-      "score": 5,
-      "feedback": "Proactive ownership, high collaborative maturity, and great communication.",
-      "evidence": ["Demonstrated strong alignment with engineering values."]
+      "score": <1-5>,
+      "feedback": "<Concrete feedback based on transcript>",
+      "evidence": ["<Verbatim candidate quote>"]
     }
   ]
 }`;
 
-      const formattedTranscript = transcript.length > 0 
-        ? transcript.map((t: any) => `[${t.speaker || 'Speaker'}]: ${t.text || ''}`).join('\n')
-        : "Candidate completed live interview panel session.";
+        const formattedTranscript = transcript.length > 0 
+          ? transcript.map((t: any) => `[${t.speaker || 'Speaker'}]: ${t.text || ''}`).join('\n')
+          : "Candidate completed live interview panel session.";
 
-      const prompt = `
+        const prompt = `
 Job Title: ${job?.title || 'Senior Software Engineer'}
 Job Description: ${job?.description || 'Build scalable software systems'}
 Candidate Resume: ${application?.resumeText?.slice(0, 2000) || 'Relevant experience'}
@@ -97,43 +178,64 @@ ${formattedTranscript}
 
 Generate the JSON Scorecard.`;
 
-      const model = genAI.getGenerativeModel({
-        model: "gemini-3.6-flash",
-        systemInstruction,
-        generationConfig: { responseMimeType: "application/json" }
-      });
+        const model = genAI.getGenerativeModel({
+          model: "gemini-3.6-flash",
+          systemInstruction,
+          generationConfig: { responseMimeType: "application/json" }
+        });
 
-      const result = await model.generateContent(prompt);
-      scorecard = JSON.parse(result.response.text());
-    } catch (llmErr) {
-      console.warn('[evaluate-final] LLM evaluation fallback triggered:', llmErr);
-      // Deterministic fallback scorecard
-      scorecard = {
-        overall_recommendation: "Hire",
-        overallScore: 86,
-        overall_summary: `Candidate demonstrated solid technical competencies and clear communicative ability throughout the panel and HR interview rounds for ${job?.title || 'the role'}.`,
-        strengths: [
-          "Structured problem decomposition and architectural understanding",
-          "Collaborative attitude and clear communication in live discussion"
-        ],
-        weaknesses: [
-          "Could deepen quantitative benchmarking and metric tracking in system design"
-        ],
-        rubric_evaluations: [
-          {
-            pillar: "Technical Depth",
-            score: 4,
-            feedback: "Demonstrated solid foundation and practical hands-on knowledge.",
-            evidence: ["Discussed project implementation details articulately."]
-          },
-          {
-            pillar: "Culture & Collaboration",
-            score: 4,
-            feedback: "Clear communication and strong ownership mindset.",
-            evidence: ["Engaged well with multi-round interviewers."]
-          }
-        ]
-      };
+        const result = await model.generateContent(prompt);
+        const parsed = JSON.parse(result.response.text());
+
+        let score = typeof parsed.overallScore === 'number' ? parsed.overallScore : 75;
+        let rec = parsed.overall_recommendation || (score >= 80 ? 'Hire' : score >= 60 ? 'Leaning Hire' : 'No Hire');
+
+        // Post-validation guardrail on LLM output
+        if (score >= 80 && stats.verbatimQuotes.length < 2) {
+          score = 72;
+          rec = 'Leaning Hire';
+        }
+
+        scorecard = {
+          overall_recommendation: rec,
+          overallScore: score,
+          overall_summary: parsed.overall_summary || `Candidate completed the interview panel with an overall score of ${score}/100.`,
+          strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ["Clear communication during technical panel"],
+          weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : ["Could provide more quantitative benchmarking in system design"],
+          rubric_evaluations: Array.isArray(parsed.rubric_evaluations) ? parsed.rubric_evaluations : []
+        };
+      } catch (llmErr) {
+        console.warn('[evaluate-final] LLM evaluation fallback triggered:', llmErr);
+        // Calibrated heuristic fallback
+        const baseScore = Math.min(92, 68 + stats.substantiveCount * 5);
+        const isHire = baseScore >= 75;
+        scorecard = {
+          overall_recommendation: isHire ? "Hire" : "Leaning Hire",
+          overallScore: baseScore,
+          overall_summary: `Candidate demonstrated solid technical competencies across ${stats.substantiveCount} technical topics and communicative ability throughout the panel and HR interview rounds for ${job?.title || 'the role'}.`,
+          strengths: [
+            "Structured problem decomposition and architectural understanding",
+            "Collaborative attitude and clear communication in live discussion"
+          ],
+          weaknesses: [
+            "Could deepen quantitative benchmarking and metric tracking in system design"
+          ],
+          rubric_evaluations: [
+            {
+              pillar: "Technical Depth",
+              score: isHire ? 4 : 3,
+              feedback: "Demonstrated solid foundation and practical hands-on knowledge.",
+              evidence: stats.verbatimQuotes.slice(0, 2)
+            },
+            {
+              pillar: "Culture & Collaboration",
+              score: 4,
+              feedback: "Clear communication and strong ownership mindset.",
+              evidence: stats.verbatimQuotes.slice(2, 3)
+            }
+          ]
+        };
+      }
     }
 
     // Save scorecard and update interview status
@@ -144,8 +246,8 @@ Generate the JSON Scorecard.`;
     // Update application pipeline record
     if (application) {
       const rec = scorecard.overall_recommendation || 'Hire';
-      const isReject = rec.toLowerCase().includes('no hire');
-      const score = scorecard.overallScore ?? (rec.includes('Strong') ? 92 : rec.includes('Hire') ? 85 : 65);
+      const isReject = rec.toLowerCase().includes('no hire') || (scorecard.overallScore ?? 0) < 55;
+      const score = scorecard.overallScore ?? (rec.includes('Strong') ? 92 : rec.includes('Hire') ? 85 : 40);
 
       application.status = isReject ? 'REJECTED' : 'SELECTED';
       application.evaluationScore = score;
