@@ -1237,6 +1237,16 @@
       "id": "matrix_cand_test_01",
       "name": "Matrix Test Candidate",
       "email": "test@example.com"
+    },
+    {
+      "id": "matrix_cand_test_01",
+      "name": "Matrix Test Candidate",
+      "email": "test@example.com"
+    },
+    {
+      "id": "matrix_cand_test_01",
+      "name": "Matrix Test Candidate",
+      "email": "test@example.com"
     }
   ],
   "applications": [
@@ -4476,8 +4486,8 @@
       "jobId": "j1",
       "candidateId": "demo-cand-test",
       "resumeText": "Alex Rivera\nSenior Backend & Infrastructure Engineer\nEmail: alex.rivera@example.com | Phone: +1-555-0192\n\nPROFESSIONAL SUMMARY:\nSeasoned Distributed Systems Engineer with 5+ years building sub-50ms real-time event streaming engines, lock-free concurrency in Go, and multi-region data platforms.\n\nCORE SKILLS:\n• Distributed Systems Architecture, Raft Consensus, Event-Driven Topologies\n• Go (Golang), TypeScript/Node.js, C++\n• Apache Kafka, Redis Clusters, PostgreSQL Optimization\n• WebRTC, WebSockets, Low-Latency Real-Time Audio\n\nEXPERIENCE:\n• Vortex Cloud Inc. (2021 - Present): Senior Systems Engineer\n  - Built event pipeline processing 1.8M events/sec.\n  - Reduced p99 latency from 45ms to 11ms.\n• Nexus Scale Labs (2019 - 2021): Backend Engineer\n  - Scaled WebSocket connection pooling to 250,000 active nodes.",
-      "status": "REJECTED",
-      "decisionStage": "FINAL_DECISION",
+      "status": "UNDER_REVIEW",
+      "decisionStage": "PENDING_HIRING_DECISION",
       "candidateContext": {
         "headline": "Staff Infrastructure Engineer — Distributed Systems & Event Streaming",
         "about": "Specialized in high-throughput low-latency stream processing, Raft consensus protocols, and WebRTC streaming media backbones.",
@@ -4520,7 +4530,7 @@
       },
       "evaluationScore": 15,
       "evaluationSummary": "Candidate provided insufficient demonstrable technical evidence during the interview panel for Senior Backend Engineer — Distributed Systems & Real-Time APIs. Responses lacked concrete architectural depth, implementation mechanics, and clear technical reasoning.",
-      "decisionReason": "Candidate provided insufficient demonstrable technical evidence during the interview panel for Senior Backend Engineer — Distributed Systems & Real-Time APIs. Responses lacked concrete architectural depth, implementation mechanics, and clear technical reasoning."
+      "decisionReason": "Interview panel completed with evaluation score 15/100. Scorecard synthesized for human hiring team review."
     },
     {
       "id": "matrix_app_test_01",
@@ -4532,6 +4542,20 @@
       "evaluationSummary": "The candidate demonstrated exceptional technical mastery in low-level distributed systems engineering, Go concurrency, and Kafka internal mechanics, alongside crisp incident response leadership.",
       "decisionStage": "FINAL_DECISION",
       "decisionReason": "The candidate demonstrated exceptional technical mastery in low-level distributed systems engineering, Go concurrency, and Kafka internal mechanics, alongside crisp incident response leadership."
+    },
+    {
+      "id": "matrix_app_test_01",
+      "jobId": "j1",
+      "candidateId": "matrix_cand_test_01",
+      "resumeText": "Test Candidate with 5 years backend experience in Go and Kafka.",
+      "status": "UNDER_REVIEW"
+    },
+    {
+      "id": "matrix_app_test_01",
+      "jobId": "j1",
+      "candidateId": "matrix_cand_test_01",
+      "resumeText": "Test Candidate with 5 years backend experience in Go and Kafka.",
+      "status": "UNDER_REVIEW"
     }
   ],
   "interviews": [
@@ -4750,6 +4774,12 @@
           "decision": "FAIL",
           "score": 10,
           "reason": "Candidate provided zero demonstrable technical evidence or unintelligible non-answers during the round."
+        },
+        {
+          "round": "Round 1: Technical Panel (Systems & Concurrency)",
+          "decision": "FAIL",
+          "score": 10,
+          "reason": "Candidate provided zero demonstrable technical evidence or unintelligible non-answers during the round."
         }
       ],
       "suspiciousEvents": [
@@ -4790,6 +4820,27 @@
         },
         {
           "timestamp": "2026-09-05T19:18:21.917Z",
+          "type": "TAB_SWITCH",
+          "details": "Candidate switched tabs or minimized interview window",
+          "severity": "HIGH",
+          "score_impact": -15
+        },
+        {
+          "timestamp": "2026-09-05T19:48:55.798Z",
+          "type": "TAB_SWITCH",
+          "details": "Candidate switched tabs or minimized interview window",
+          "severity": "HIGH",
+          "score_impact": -15
+        },
+        {
+          "timestamp": "2026-09-05T19:48:59.169Z",
+          "type": "TAB_SWITCH",
+          "details": "Candidate switched tabs or minimized interview window",
+          "severity": "HIGH",
+          "score_impact": -15
+        },
+        {
+          "timestamp": "2026-09-05T19:49:43.145Z",
           "type": "TAB_SWITCH",
           "details": "Candidate switched tabs or minimized interview window",
           "severity": "HIGH",
@@ -4867,8 +4918,8 @@
           "speech_contrib": 9,
           "consistency_contrib": 4.7
         },
-        "lastUpdated": "2026-09-05T19:18:21.917Z",
-        "totalEventsRecorded": 6
+        "lastUpdated": "2026-09-05T19:49:43.146Z",
+        "totalEventsRecorded": 9
       },
       "scorecard": {
         "overall_recommendation": "No Hire",
@@ -4895,7 +4946,7 @@
           }
         ]
       },
-      "completedAt": "2026-09-05T19:19:23.357Z"
+      "completedAt": "2026-09-05T19:50:13.019Z"
     },
     {
       "id": "matrix_eval_test_01",
@@ -4940,6 +4991,46 @@
           "round": "Round 2: HR Round",
           "speaker": "Matrix Test Candidate",
           "text": "During a black-swan network partition, I coordinated the incident war room, applied a rate-limiting circuit breaker, and conducted a blameless post-mortem establishing automated canary alerts."
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Priya Nair",
+          "text": "How did you design batch replication in your Chronos-Raft engine?"
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Matrix Test Candidate",
+          "text": "In Chronos-Raft, we batch append-entry RPCs using non-blocking lock-free ring buffers in Go with atomic CAS operations to batch log entries to disk via fdatasync, maintaining sub-10ms p99 latency."
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Arjun Malhotra",
+          "text": "How do you prevent consumer rebalancing storms in Kafka under heavy partition load?"
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Matrix Test Candidate",
+          "text": "We utilize cooperative sticky assignors and isolate heartbeats on dedicated goroutines to avoid false lease timeouts during long GC pauses."
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Priya Nair",
+          "text": "How did you design batch replication in your Chronos-Raft engine?"
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Matrix Test Candidate",
+          "text": "In Chronos-Raft, we batch append-entry RPCs using non-blocking lock-free ring buffers in Go with atomic CAS operations to batch log entries to disk via fdatasync, maintaining sub-10ms p99 latency."
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Arjun Malhotra",
+          "text": "How do you prevent consumer rebalancing storms in Kafka under heavy partition load?"
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "speaker": "Matrix Test Candidate",
+          "text": "We utilize cooperative sticky assignors and isolate heartbeats on dedicated goroutines to avoid false lease timeouts during long GC pauses."
         }
       ],
       "evaluations": [
@@ -4948,6 +5039,18 @@
           "decision": "PASS",
           "score": 88,
           "reason": "The candidate provided concrete technical mechanisms for Raft batch replication and Go concurrency control, citing fdatasync, atomic CAS ring buffers, and dedicated goroutines for heartbeats. The candidate demonstrated high technical depth and strong evidence across both rubric competencies."
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "decision": "PASS",
+          "score": 71,
+          "reason": "Candidate articulated technical concepts with concrete reasoning across 1 technical topics."
+        },
+        {
+          "round": "Round 1: Technical Panel",
+          "decision": "PASS",
+          "score": 88,
+          "reason": "The candidate provided strong, concrete evidence for both Concurrency and Distributed Consensus with low-level implementation details such as lock-free ring buffers with atomic CAS operations and fdatasync disk persistence. They demonstrated precise technical depth and specific latency targets (sub-10ms p99) across both answers."
         }
       ],
       "scorecard": {
@@ -5006,6 +5109,38 @@
         ]
       },
       "completedAt": "2026-09-05T19:10:55.513Z"
+    },
+    {
+      "id": "matrix_eval_test_01",
+      "applicationId": "matrix_app_test_01",
+      "scheduledAt": "2026-09-05T19:55:05.333Z",
+      "status": "IN_PROGRESS",
+      "transcript": [],
+      "evaluations": []
+    },
+    {
+      "id": "matrix_eval_strong_01",
+      "applicationId": "matrix_app_test_01",
+      "scheduledAt": "2026-09-05T19:55:05.516Z",
+      "status": "IN_PROGRESS",
+      "transcript": [],
+      "evaluations": []
+    },
+    {
+      "id": "matrix_eval_test_01",
+      "applicationId": "matrix_app_test_01",
+      "scheduledAt": "2026-09-05T19:55:40.796Z",
+      "status": "IN_PROGRESS",
+      "transcript": [],
+      "evaluations": []
+    },
+    {
+      "id": "matrix_eval_strong_01",
+      "applicationId": "matrix_app_test_01",
+      "scheduledAt": "2026-09-05T19:55:41.015Z",
+      "status": "IN_PROGRESS",
+      "transcript": [],
+      "evaluations": []
     }
   ],
   "blueprints": [

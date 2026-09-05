@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProctorEngine from './ProctorEngine';
 import { injectKnowledgeBaseIntoAgentInstructions } from '@/lib/enrichment/knowledgeBase';
+import { isClosingUtterance } from '@/lib/interview/interviewState';
 import { Users, Shield, Zap, Sparkles, Mic, Volume2, UserCheck, AlertCircle, Clock } from 'lucide-react';
 import ParticleTalkingOrb from '@/components/room/ParticleTalkingOrb';
 
@@ -63,6 +64,10 @@ export default function InterviewRoom({
 }) {
   const router = useRouter();
   const [testState, setTestState] = useState<'IDLE' | 'STARTING' | 'RUNNING' | 'TECHNICAL_CLOSING' | 'HR_CLOSING' | 'STOPPING' | 'EVALUATING' | 'DECISION_GATE' | 'ROUND_TRANSITION' | 'INTERVIEW_COMPLETE' | 'ENDED' | 'ERROR'>('IDLE');
+  const testStateRef = useRef(testState);
+  useEffect(() => {
+    testStateRef.current = testState;
+  }, [testState]);
   const [logs, setLogs] = useState<{time: string, comp: string, msg: string}[]>([]);
   const [transcript, setTranscript] = useState<{round?: string, speaker: string, text: string}[]>([]);
   const [micVolume, setMicVolume] = useState(0);
@@ -302,17 +307,49 @@ export default function InterviewRoom({
           }
         }, 18000);
       } else if (currentFloorRef.current === 'CHALLENGER_AI') {
-        // If candidate just answered a Challenger probe, return floor to Primary Lead
-        addLog('Turn Arbiter', `Candidate addressed Specialist probe. Returning floor to Lead Interviewer.`);
-        setFloorOwner('PRIMARY_AI');
-        currentFloorRef.current = 'PRIMARY_AI';
-        remoteAudioTracksRef.current.get(9992)?.setVolume(0);
-        remoteAudioTracksRef.current.get(9991)?.setVolume(100);
-        setActivePanelAgents(prev => prev.map(a => ({
-          ...a,
-          hasFloor: a.isPrimary,
-          intervening: false
-        })));
+        // If candidate just answered a Challenger probe, deliver concise acknowledgment and return floor to Lead Interviewer
+        const challengerName = challengerAgent?.name || 'Specialist';
+        const primaryName = primaryAgent?.name || 'Lead Interviewer';
+        const ackText = `Thanks for breaking down those trade-offs, ${candidateName}. That gives great clarity on your failure recovery model.`;
+        
+        addLog('Turn Arbiter', `${challengerName} acknowledged candidate response. Returning floor to ${primaryName}.`);
+        
+        setTranscript(prev => [...prev, {
+          round: round.round_name,
+          speaker: challengerName,
+          text: ackText
+        }]);
+
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            const ackUtterance = new SpeechSynthesisUtterance(ackText);
+            ackUtterance.rate = 1.05;
+            ackUtterance.onend = () => {
+              setFloorOwner('PRIMARY_AI');
+              currentFloorRef.current = 'PRIMARY_AI';
+              remoteAudioTracksRef.current.get(9992)?.setVolume(0);
+              remoteAudioTracksRef.current.get(9991)?.setVolume(100);
+              setActivePanelAgents(prev => prev.map(a => ({
+                ...a,
+                hasFloor: a.isPrimary,
+                intervening: false
+              })));
+            };
+            window.speechSynthesis.speak(ackUtterance);
+          } catch (e) {
+            setFloorOwner('PRIMARY_AI');
+            currentFloorRef.current = 'PRIMARY_AI';
+            remoteAudioTracksRef.current.get(9992)?.setVolume(0);
+            remoteAudioTracksRef.current.get(9991)?.setVolume(100);
+            setActivePanelAgents(prev => prev.map(a => ({ ...a, hasFloor: a.isPrimary, intervening: false })));
+          }
+        } else {
+          setFloorOwner('PRIMARY_AI');
+          currentFloorRef.current = 'PRIMARY_AI';
+          remoteAudioTracksRef.current.get(9992)?.setVolume(0);
+          remoteAudioTracksRef.current.get(9991)?.setVolume(100);
+          setActivePanelAgents(prev => prev.map(a => ({ ...a, hasFloor: a.isPrimary, intervening: false })));
+        }
       }
 
       // Check Natural Round Completion Criteria
@@ -644,9 +681,20 @@ CORE RULES & SILENT STANDBY:
               return newArr;
             });
 
-            // If candidate spoke, check for deterministic scalability/concurrency triggers or explicit name drops
+            // If candidate spoke, check for deterministic scalability/concurrency triggers or turn arbitration
             if (numUid === candidateUid && data.is_final) {
               handleCandidateUtterance(data.text);
+            }
+
+            // If AI Interviewer spoke, detect natural concluding sign-offs in real time
+            if (numUid !== candidateUid && data.is_final) {
+              if (isClosingUtterance(data.text) && testStateRef.current === 'RUNNING' && !autoFinishTriggeredRef.current) {
+                autoFinishTriggeredRef.current = true;
+                addLog('Orchestrator', `🎙️ Interviewer concluding sign-off detected: "${data.text.slice(0, 80)}...". Concluding round smoothly...`);
+                setTimeout(() => {
+                  finishRound('AGENT_SIGN_OFF');
+                }, 2200);
+              }
             }
           }
         } catch (e) {
@@ -723,6 +771,63 @@ CORE RULES & SILENT STANDBY:
 
       setTestState('RUNNING');
       addLog('System', `Round ${currentRound + 1} is running with active panel.`);
+
+      // If Multi-Agent Technical Panel (2 interviewers), schedule introductory turn for Specialist
+      if (isTechnicalRound && runningAgents.length >= 2) {
+        const primaryInfo = runningAgents.find(a => a.isPrimary) || runningAgents[0];
+        const challengerInfo = runningAgents.find(a => !a.isPrimary) || runningAgents[1];
+        
+        setTimeout(() => {
+          if (currentFloorRef.current !== 'PRIMARY_AI') return;
+          
+          const challengerGreetingText = (roundInterviewers[1] as any)?.greeting_message || `Hi ${candidateName}, great to meet you! As ${primaryInfo.name} mentioned, I focus on distributed architecture, failure resilience, and scaling limits here at Nexora. Really looking forward to our discussion today!`;
+
+          addLog('Turn Arbiter', `Panel Introduction: ${challengerInfo.name} introduces themselves to candidate.`);
+          setFloorOwner('CHALLENGER_AI');
+          currentFloorRef.current = 'CHALLENGER_AI';
+          remoteAudioTracksRef.current.get(9991)?.setVolume(0);
+          remoteAudioTracksRef.current.get(9992)?.setVolume(100);
+          setActivePanelAgents(prev => prev.map(a => ({ ...a, hasFloor: !a.isPrimary, intervening: true })));
+
+          setTranscript(prev => [...prev, {
+            round: round.round_name,
+            speaker: challengerInfo.name,
+            text: challengerGreetingText
+          }]);
+
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            try {
+              window.speechSynthesis.cancel();
+              const introUtterance = new SpeechSynthesisUtterance(challengerGreetingText);
+              introUtterance.rate = 1.0;
+              introUtterance.pitch = 0.95;
+              introUtterance.onend = () => {
+                addLog('Turn Arbiter', `${challengerInfo.name} completed introduction. Floor returned to ${primaryInfo.name} for Question 1.`);
+                setFloorOwner('PRIMARY_AI');
+                currentFloorRef.current = 'PRIMARY_AI';
+                remoteAudioTracksRef.current.get(9992)?.setVolume(0);
+                remoteAudioTracksRef.current.get(9991)?.setVolume(100);
+                setActivePanelAgents(prev => prev.map(a => ({ ...a, hasFloor: a.isPrimary, intervening: false })));
+              };
+              window.speechSynthesis.speak(introUtterance);
+            } catch (e) {
+              setFloorOwner('PRIMARY_AI');
+              currentFloorRef.current = 'PRIMARY_AI';
+              remoteAudioTracksRef.current.get(9992)?.setVolume(0);
+              remoteAudioTracksRef.current.get(9991)?.setVolume(100);
+              setActivePanelAgents(prev => prev.map(a => ({ ...a, hasFloor: a.isPrimary, intervening: false })));
+            }
+          } else {
+            setTimeout(() => {
+              setFloorOwner('PRIMARY_AI');
+              currentFloorRef.current = 'PRIMARY_AI';
+              remoteAudioTracksRef.current.get(9992)?.setVolume(0);
+              remoteAudioTracksRef.current.get(9991)?.setVolume(100);
+              setActivePanelAgents(prev => prev.map(a => ({ ...a, hasFloor: a.isPrimary, intervening: false })));
+            }, 4500);
+          }
+        }, 5000);
+      }
 
     } catch (e: any) {
       setTestState('ERROR');

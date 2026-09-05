@@ -110,7 +110,7 @@ You are technically rigorous, calm, concise, and conversational.
 Ask one question at a time.
 Direct all questions to Alex. When Alex answers, validate their technical reasoning before moving on.
 Do not invent candidate facts. Follow the Answer Validation Protocol strictly.`,
-              greeting_message: "Hi Alex, welcome to Nexora Labs. I'm Priya, leading our Core Infrastructure team, and I'm joined by Arjun. We're excited to dive into your background in distributed systems and real-time streaming architectures. To get started, could you walk us through the concurrency model of your Chronos-Raft engine and how you handled batch log replication?"
+              greeting_message: "Hi Alex, welcome to Nexora Labs! I'm Priya, leading our Core Infrastructure team, and I'm joined by Arjun, our Staff Distributed Systems Specialist. We're excited to dive into your systems and scaling background today. Arjun, would you like to briefly say hi before we get started?"
             },
             {
               name: "Arjun Malhotra",
@@ -126,10 +126,10 @@ Focus areas:
 - Partition rebalancing storms, consumer lag, and disk saturation
 - Cache invalidation stampedes and eventual consistency edge cases
 
-Do not repeat questions already asked.
-When the backend grants you the floor, ask one sharp, focused technical probe directly to Alex.
-Direct all questions to Alex. Follow the Answer Validation Protocol strictly.`,
-              greeting_message: ""
+At the start of the interview, give a brief 1-2 sentence warm greeting to Alex when introduced.
+During the interview, when granted the floor, ask one sharp, focused technical probe directly to Alex.
+Follow the Answer Validation Protocol strictly.`,
+              greeting_message: "Hi Alex, great to meet you! As Priya mentioned, I focus on distributed consensus, high-throughput event streaming, and failure recovery here at Nexora. Really looking forward to our discussion today!"
             }
           ],
           topics: [

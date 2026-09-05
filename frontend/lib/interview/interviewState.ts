@@ -11,19 +11,44 @@ import {
 } from '@/lib/db';
 
 /**
+ * Detects whether an interviewer utterance indicates the round or overall interview is concluding.
+ */
+export function isClosingUtterance(text: string): boolean {
+  if (!text || typeof text !== 'string') return false;
+  const clean = text.toLowerCase().trim();
+  if (clean.length < 12) return false;
+
+  const closingPatterns = [
+    /(conclude|concludes|concluding|wrap\s*up|wraps\s*up|end\s*of)\s*(our|the|this)?\s*([a-z-]+\s+)?(interview|discussion|round|session|call|panel)/i,
+    /(that('s|\s+is)\s+all\s+(the\s+questions\s+)?(i|we)\s+have)/i,
+    /(that\s+is\s+everything\s+(for\s+today|i\s+have|we\s+need))/i,
+    /(we('re|\s+are)\s+all\s+done\s+for\s+today)/i,
+    /(interview\s+is\s+(now\s+)?(over|concluded|complete|finished|wrapped\s*up))/i,
+    /(brings\s+(us|our\s+session|this)\s+to\s+(a\s+close|an\s+end|the\s+end))/i,
+    /(covers?\s+all\s+(the\s+topics|our\s+questions|what\s+we\s+needed))/i,
+    /(thank\s+you\s+for\s+your\s+time\s+today.*(next\s+steps|team\s+will|recruiter|in\s+touch|follow\s*up|get\s+back))/i,
+    /(best\s+of\s+luck\s+with\s+(the\s+rest|the\s+hiring|your\s+process|next\s+steps))/i,
+    /(hiring\s+team|recruiting\s+team|talent\s+team)\s+will\s+(be\s+in\s+touch|reach\s+out|follow\s*up)/i,
+    /(that\s+wraps\s+up\s+(the\s+technical\s+round|our\s+technical\s+round|this\s+round))/i
+  ];
+
+  return closingPatterns.some(pattern => pattern.test(clean));
+}
+
+/**
  * Architectural triggers that indicate the Candidate made a concrete technical claim.
  * Used by the Challenger agent to formulate structured floor requests.
  */
 export const ARCHITECTURAL_TRIGGERS = [
-  { pattern: /\b(\d+\s*(?:million|billion|m|k))\s*(?:req|request|query|event|user|tps|qps)/i, reason: 'candidate_claimed_high_scale', competency: 'Scalability & Throughput', probeType: 'traffic_spike' },
-  { pattern: /\b(distributed|sharding|partition|replica|replication|cluster)\b/i, reason: 'candidate_claimed_distributed_storage', competency: 'Distributed Systems & Partitioning', probeType: 'partition_tolerance' },
-  { pattern: /\b(kafka|pubsub|event-driven|message\s*queue|rabbitmq)\b/i, reason: 'candidate_claimed_event_streaming', competency: 'Event Streaming & Backpressure', probeType: 'backpressure_and_ordering' },
-  { pattern: /\b(microservice|micro-service|service\s*mesh)\b/i, reason: 'candidate_claimed_microservices', competency: 'Service Architecture & Latency', probeType: 'service_failure_and_latency' },
-  { pattern: /\b(cache|redis|memcached|invalidation)\b/i, reason: 'candidate_claimed_caching_layer', competency: 'Caching & Data Consistency', probeType: 'cache_stampede_and_invalidation' },
-  { pattern: /\b(concurrency|multithread|asyncio|race\s*condition|deadlock|mutex|lock|goroutine)\b/i, reason: 'candidate_claimed_concurrency_model', competency: 'Concurrency & Thread Safety', probeType: 'race_condition_prevention' },
-  { pattern: /\b(rag|vector|embedding|cosine|faiss|chroma|pinecone)\b/i, reason: 'candidate_claimed_rag_pipeline', competency: 'AI/Vector Infrastructure', probeType: 'vector_index_latency_and_drift' },
-  { pattern: /\b(webrtc|turn|stun|sdp|ice|audio\s*track|real-time\s*voice)\b/i, reason: 'candidate_claimed_webrtc_audio', competency: 'Real-Time Media Transport', probeType: 'packet_loss_and_jitter' },
-  { pattern: /\b(raft|paxos|consensus|quorum|leader\s*election|split-brain)\b/i, reason: 'candidate_claimed_distributed_consensus', competency: 'Consensus & Failure Recovery', probeType: 'split_brain_and_network_partitions' }
+  { pattern: /\b(\d+\s*(?:million|billion|m|k))\s*(?:req|request|query|event|user|tps|qps|rps)/i, reason: 'candidate_claimed_high_scale', competency: 'Scalability & Throughput', probeType: 'traffic_spike' },
+  { pattern: /\b(distributed|sharding|partition|replica|replication|cluster|postgres|sql|nosql|mongo|database)\b/i, reason: 'candidate_claimed_distributed_storage', competency: 'Distributed Systems & Partitioning', probeType: 'partition_tolerance' },
+  { pattern: /\b(kafka|pubsub|event-driven|message\s*queue|rabbitmq|stream|queue|pipeline)\b/i, reason: 'candidate_claimed_event_streaming', competency: 'Event Streaming & Backpressure', probeType: 'backpressure_and_ordering' },
+  { pattern: /\b(microservice|micro-service|service\s*mesh|api|gateway|grpc|http|rest)\b/i, reason: 'candidate_claimed_microservices', competency: 'Service Architecture & Latency', probeType: 'service_failure_and_latency' },
+  { pattern: /\b(cache|redis|memcached|invalidation|ttl)\b/i, reason: 'candidate_claimed_caching_layer', competency: 'Caching & Data Consistency', probeType: 'cache_stampede_and_invalidation' },
+  { pattern: /\b(concurrency|multithread|asyncio|race\s*condition|deadlock|mutex|lock|goroutine|channel|thread)\b/i, reason: 'candidate_claimed_concurrency_model', competency: 'Concurrency & Thread Safety', probeType: 'race_condition_prevention' },
+  { pattern: /\b(rag|vector|embedding|cosine|faiss|chroma|pinecone|llm|model)\b/i, reason: 'candidate_claimed_rag_pipeline', competency: 'AI/Vector Infrastructure', probeType: 'vector_index_latency_and_drift' },
+  { pattern: /\b(webrtc|turn|stun|sdp|ice|audio\s*track|real-time\s*voice|socket|websocket)\b/i, reason: 'candidate_claimed_webrtc_audio', competency: 'Real-Time Media Transport', probeType: 'packet_loss_and_jitter' },
+  { pattern: /\b(raft|paxos|consensus|quorum|leader\s*election|split-brain|chronos)\b/i, reason: 'candidate_claimed_distributed_consensus', competency: 'Consensus & Failure Recovery', probeType: 'split_brain_and_network_partitions' }
 ];
 
 /**
@@ -417,6 +442,38 @@ export function evaluateChallengerObservation(
         }
       };
     }
+  }
+
+  // Routine non-architectural topics (e.g. IDEs, editors, basic tooling) do not warrant Challenger intervention
+  if (/\b(neovim|vim|vscode|intellij|editor|ide|laptop|dark\s*mode)\b/i.test(clean) || state.currentTopic?.toLowerCase().includes('tooling') || state.currentTopic?.toLowerCase().includes('productivity')) {
+    return { action: 'NO_INTERVENTION', reason: 'Routine developer tooling discussion does not require architectural probing.' };
+  }
+
+  // Proactively intervene if Challenger has not asked a question yet or after substantive technical response
+  const challengerTurnsCount = (state.structuredFloorRequests || []).filter(r => r.agent === 'challenger' && r.status === 'granted').length;
+  const questionsCount = state.questionsAsked?.length || 0;
+
+  if (challengerTurnsCount === 0 || (questionsCount >= 2 && challengerTurnsCount < 2)) {
+    const defaultProbes = [
+      `Building on that architecture, what specific failure modes or network partition scenarios did you have to guard against in production, and how did you verify recovery?`,
+      `How does your design handle sudden downstream latency spikes or backpressure when concurrent traffic scales 10x?`,
+      `What were the key trade-offs in that implementation between immediate consistency and system throughput?`,
+      `If you had to scale that pipeline to handle 10x your current load, where would the primary bottleneck emerge and how would you redesign it?`
+    ];
+    const selectedProbe = defaultProbes[challengerTurnsCount % defaultProbes.length];
+
+    return {
+      action: 'STRUCTURED_FLOOR_REQUEST',
+      reason: 'specialist_core_competency_deep_dive',
+      request: {
+        agentId: challenger.agentId,
+        agentName: challenger.name,
+        reason: 'Specialist deep-dive into failure modes and scaling limits',
+        targetCompetency: 'Distributed Architecture & Failure Resilience',
+        priority: 'high',
+        proposedProbe: selectedProbe
+      }
+    };
   }
 
   return { action: 'NO_INTERVENTION', reason: 'Candidate answer addressed current question adequately without unaddressed architectural risks.' };
